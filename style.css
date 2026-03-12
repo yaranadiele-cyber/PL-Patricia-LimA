@@ -607,3 +607,17 @@ outline:none;
 .agenda .botao{
 margin-top:10px;
 }
+
+/* HORARIO DISPONIVEL */
+
+#hora option{
+background:#9be2a9;
+color:#064420;
+}
+
+/* HORARIO OCUPADO */
+
+#hora option.ocupado{
+background:#ff7b7b;
+color:white;
+}
