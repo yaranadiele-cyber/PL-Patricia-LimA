@@ -9,38 +9,33 @@ box-sizing:border-box;
 /* BODY */
 
 body{
-
-font-family:Poppins;
+font-family:Poppins, sans-serif;
 background:#cfa896;
-
 display:flex;
 justify-content:center;
-
+padding:10px;
 }
+
+/* CONTAINER */
 
 .container{
 
-max-width:800px; /* mais largo */
-
-width:95%;
+max-width:900px;
+width:100%;
 
 min-height:90vh;
 
-margin:30px auto;
+margin:20px auto;
 
 text-align:center;
 
-padding:40px 30px;
+padding:40px 20px;
 
 position:relative;
 
 overflow:hidden;
 
-/* bordas arredondadas */
-
 border-radius:35px;
-
-/* fundo do quadrado */
 
 background:linear-gradient(
 135deg,
@@ -48,12 +43,13 @@ background:linear-gradient(
 #efe4de 60%
 );
 
-/* sombra flutuante */
-
 box-shadow:0 20px 45px rgba(0,0,0,0.25);
 
+animation:flutuar 6s ease-in-out infinite;
+
 }
-/* DECORAÇÕES DO FUNDO */
+
+/* DECORAÇÕES */
 
 .container::before{
 
@@ -96,9 +92,7 @@ border-radius:50%;
 /* LOGO */
 
 .logo-area{
-
 margin-top:20px;
-
 }
 
 .monograma{
@@ -125,13 +119,13 @@ font-size:16px;
 
 }
 
-/* GALERIA CARROSSEL */
+/* CARROSSEL */
 
 .galeria{
 
 position:relative;
 
-height:200px; /* altura maior para acomodar as imagens maiores */
+height:240px;
 
 display:flex;
 justify-content:center;
@@ -147,8 +141,8 @@ margin-top:30px;
 
 position:absolute;
 
-width:300px; /* largura maior para as imagens */    
-height:300px; /* altura maior para as imagens */
+width:260px;
+height:260px;
 
 object-fit:cover;
 
@@ -206,9 +200,9 @@ margin-top:40px;
 
 .links-titulo h2{
 
-font-size:38px;
+font-size:34px;
 color:white;
-font-weight:600; /* peso da fonte mais forte para o título */
+font-weight:600;
 
 }
 
@@ -265,7 +259,7 @@ overflow:hidden;
 
 }
 
-/* BRILHO NOS BOTÕES */
+/* BRILHO */
 
 .botao::before{
 
@@ -293,22 +287,18 @@ transition:0.7s;
 }
 
 .botao:hover::before{
-
 left:130%;
-
 }
 
 .botao:hover{
-
 transform:scale(1.05);
-
 }
 
-/* RODAPÉ VIDRO */
+/* RODAPÉ */
 
 footer{
 
-margin-top:60px; /* mais espaçamento do rodapé */
+margin-top:60px;
 
 display:flex;
 justify-content:center;
@@ -331,33 +321,18 @@ color:#6b4a3f;
 
 box-shadow:0 5px 15px rgba(0,0,0,0.15);
 
-/* largura maior */
-
 width:100%;
-
 max-width:650px;
 
 }
 
-.container{
-
-animation:flutuar 6s ease-in-out infinite;
-
-}
+/* ANIMAÇÃO */
 
 @keyframes flutuar{
 
-0%{
-transform:translateY(0px);
-}
-
-50%{
-transform:translateY(-8px);
-}
-
-100%{
-transform:translateY(0px);
-}
+0%{transform:translateY(0px);}
+50%{transform:translateY(-8px);}
+100%{transform:translateY(0px);}
 
 }
 
@@ -373,8 +348,8 @@ padding:10px 20px;
 
 .foto-perfil{
 
-width:300px; /* largura maior para a foto de perfil */
-height:300px; /* altura maior para a foto de perfil */
+width:220px;
+height:220px;
 
 border-radius:50%;
 
@@ -390,7 +365,7 @@ margin-bottom:20px;
 
 .quem h2{
 
-font-size:34px;
+font-size:30px;
 color:white;
 margin-bottom:10px;
 
@@ -399,13 +374,12 @@ margin-bottom:10px;
 .quem p{
 
 color:#3f2922;
-font-size:20px;
+font-size:18px;
 line-height:1.5;
-
 
 }
 
-/* REDES SOCIAIS */
+/* REDES */
 
 .redes{
 
@@ -443,10 +417,9 @@ transition:0.3s;
 }
 
 .icone:hover{
-
 transform:scale(1.1);
-
 }
+
 /* SERVIÇOS */
 
 .servicos{
@@ -455,7 +428,9 @@ margin-top:40px;
 
 display:grid;
 
-grid-template-columns:1fr 1fr;
+/* RESPONSIVO AUTOMÁTICO */
+
+grid-template-columns:repeat(auto-fit, minmax(260px,1fr));
 
 gap:20px;
 
@@ -471,7 +446,7 @@ backdrop-filter:blur(12px);
 
 border-radius:20px;
 
-padding:20px;
+padding:18px;
 
 text-align:center;
 
@@ -482,9 +457,7 @@ transition:0.3s;
 }
 
 .card-servico:hover{
-
 transform:translateY(-6px);
-
 }
 
 /* IMAGEM */
@@ -492,7 +465,8 @@ transform:translateY(-6px);
 .card-servico img{
 
 width:100%;
-height:400px;
+
+height:220px;
 
 object-fit:cover;
 
@@ -522,13 +496,13 @@ color:#3a231c;
 
 font-weight:600;
 
-margin-bottom:25px;
+margin-bottom:15px;
 
-font-size: 20px;
+font-size:18px;
 
 }
 
-/* BOTÃO */
+/* BOTÃO SERVIÇO */
 
 .botao-servico{
 
@@ -555,95 +529,33 @@ transition:0.3s;
 }
 
 .botao-servico:hover{
-
 transform:scale(1.05);
+}
+
+/* RESPONSIVIDADE */
+
+@media(max-width:600px){
+
+.logo-area h1{
+font-size:40px;
+}
+
+.links-titulo h2{
+font-size:28px;
+}
+
+.galeria{
+height:200px;
+}
+
+.slide{
+width:200px;
+height:200px;
+}
 
 }
 
-/* BOTÃO VOLTAR */
-
-.botao-voltar{
-
-display:inline-block;
-
-padding:4px 0; /* padding mais compacto para o botão de voltar */
-
-font-size:14px;
-
-color:#6b4a3f;
-
-text-decoration:none;
-
-border-radius:25px; /* bordas arredondadas para o botão de voltar */
-
-/* efeito vidro */
-
-background:rgba(255,255,255,0.25);
-
-backdrop-filter:blur(10px);
-
--webkit-backdrop-filter:blur(10px);
-
-border:1px solid rgba(255,255,255,0.4);
-
-/* sombra elegante */
-
-box-shadow:0 4px 15px rgba(0,0,0,0.15);
-
-position:relative;
-
-overflow:hidden;
-
-transition:0.3s;
-
-}
-
-.botao-voltar::before{
-
-content:"";
-
-position:absolute;
-
-top:0;
-
-left:-100%;
-
-width:100%; /* largura total para o efeito de brilho */
-
-height:100%; /* altura total para o efeito de brilho */
-
-background:linear-gradient(
-120deg,
-transparent,
-rgba(255,255,255,0.6),
-transparent
-);
-
-transition:0.5s;
-
-}
-
-.botao-voltar:hover{
-
-transform:translateY(-2px);
-
-box-shadow:0 8px 20px rgba(0,0,0,0.2);
-
-}
-
-.botao-voltar:hover::before{
-
-left:120%;
-
-}
-
-.botao-voltar:hover{
-
-transform:scale(1.05);
-
-}
-
-/* AGENDA VIDRO */
+/* AGENDA */
 
 .agenda{
 
@@ -665,11 +577,7 @@ flex-direction:column;
 
 gap:15px;
 
-animation:flutuar 6s ease-in-out infinite;
-
 }
-
-/* TITULO */
 
 .agenda h2{
 
@@ -680,8 +588,6 @@ font-size:26px;
 margin-bottom:10px;
 
 }
-
-/* INPUTS */
 
 .agenda input,
 .agenda select{
@@ -698,10 +604,6 @@ outline:none;
 
 }
 
-/* BOTÃO */
-
 .agenda .botao{
-
 margin-top:10px;
-
 }
