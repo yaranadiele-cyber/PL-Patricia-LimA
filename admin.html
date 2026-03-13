@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<meta charset="UTF-8">
+<title>Painel de Agendamentos</title>
+</head>
+
+<body>
+
+<h2>Agendamentos</h2>
+
+<ul id="lista"></ul>
+
+<script>
+
+let lista = document.getElementById("lista")
+
+let agendamentos = JSON.parse(localStorage.getItem("agendamentos")) || []
+
+agendamentos.forEach(a => {
+
+let li = document.createElement("li")
+
+li.textContent = `${a.nome} - ${a.servico} - ${a.data} às ${a.hora}`
+
+lista.appendChild(li)
+
+})
+
+</script>
+
+</body>
+
+</html>

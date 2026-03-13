@@ -1,22 +1,25 @@
+// carregar horários ocupados
+
 function carregarHorarios(){
 
 let data = document.getElementById("data").value
+let horaSelect = document.getElementById("hora")
 
-let ocupados = JSON.parse(localStorage.getItem("agenda_"+data)) || []
+if(!data) return
 
-let select = document.getElementById("hora")
+let agendamentos = JSON.parse(localStorage.getItem("agendamentos")) || []
 
-for(let option of select.options){
+for(let option of horaSelect.options){
 
-if(ocupados.includes(option.value)){
-
-option.classList.add("ocupado")
-option.disabled = true
-
-}else{
-
-option.classList.remove("ocupado")
 option.disabled = false
+option.style.background = "#9be2a9"
+
+for(let a of agendamentos){
+
+if(a.data === data && a.hora === option.value){
+
+option.disabled = true
+option.style.background = "#ff7b7b"
 
 }
 
@@ -24,7 +27,13 @@ option.disabled = false
 
 }
 
-document.getElementById("data").addEventListener("change",carregarHorarios)
+}
+
+document.getElementById("data").addEventListener("change", carregarHorarios)
+
+
+
+// enviar agendamento
 
 function enviarWhatsapp(){
 
@@ -35,25 +44,38 @@ let hora = document.getElementById("hora").value
 
 if(!nome || !data){
 
-alert("Preencha nome e data")
-
+alert("Preencha seu nome e a data")
 return
 
 }
 
-let ocupados = JSON.parse(localStorage.getItem("agenda_"+data)) || []
+let agendamentos = JSON.parse(localStorage.getItem("agendamentos")) || []
 
-if(ocupados.includes(hora)){
+// verificar horário ocupado
 
-alert("Esse horário já foi reservado")
+for(let a of agendamentos){
 
+if(a.data === data && a.hora === hora){
+
+alert("Esse horário já está ocupado")
 return
 
 }
 
-ocupados.push(hora)
+}
 
-localStorage.setItem("agenda_"+data, JSON.stringify(ocupados))
+// salvar agendamento
+
+agendamentos.push({
+
+nome:nome,
+servico:servico,
+data:data,
+hora:hora
+
+})
+
+localStorage.setItem("agendamentos", JSON.stringify(agendamentos))
 
 let mensagem = `Olá Patricia! Gostaria de agendar.
 
