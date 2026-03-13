@@ -608,6 +608,9 @@ outline:none;
 margin-top:10px;
 }
 
+.btn-agendar{
+cursor:pointer;
+}
 /* HORARIO DISPONIVEL */
 
 #hora option{
