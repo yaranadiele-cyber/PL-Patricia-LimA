@@ -622,3 +622,81 @@ color:#064420;
 background:#ff7b7b;
 color:white;
 }
+
+/* PAINEL ADMIN */
+
+.painel-agendamentos{
+
+margin-top:40px;
+
+display:grid;
+
+grid-template-columns:repeat(auto-fit, minmax(260px,1fr));
+
+gap:20px;
+
+justify-content:center;
+
+}
+
+/* CARD AGENDAMENTO */
+
+.card-agenda{
+
+background:rgba(255,255,255,0.25);
+
+backdrop-filter:blur(12px);
+
+border-radius:20px;
+
+padding:18px;
+
+text-align:center;
+
+box-shadow:0 8px 20px rgba(0,0,0,0.2);
+
+transition:0.3s;
+
+display:flex;
+
+flex-direction:column;
+
+gap:8px;
+
+}
+
+.card-agenda:hover{
+transform:translateY(-6px);
+}
+
+/* BOTÕES DO CARD */
+
+.card-agenda button{
+
+border:none;
+
+padding:10px;
+
+border-radius:25px;
+
+color:white;
+
+cursor:pointer;
+
+font-size:14px;
+
+margin-top:5px;
+
+}
+
+/* CONFIRMAR */
+
+.confirmar{
+background:#6ecb8b;
+}
+
+/* CANCELAR */
+
+.cancelar{
+background:#ff7b7b;
+}

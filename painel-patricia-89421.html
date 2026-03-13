@@ -39,7 +39,7 @@ cursor:pointer;
 
 <h2>Painel de Agendamentos</h2>
 
-<div id="lista"></div>
+<div id="lista" class="painel-agendamentos"></div>
 
 <script>
 
@@ -67,12 +67,15 @@ card.className="card-agenda"
 
 card.innerHTML=`
 
-<strong>${a.nome}</strong>
-<span>Serviço: ${a.servico}</span>
-<span>Data: ${a.data}</span>
-<span>Hora: ${a.hora}</span>
+<h3>${a.nome}</h3>
 
-<button onclick="confirmar(${index})">
+<p>Serviço: ${a.servico}</p>
+
+<p>Data: ${a.data}</p>
+
+<p>Hora: ${a.hora}</p>
+
+<button class="confirmar" onclick="confirmar(${index})">
 Confirmar
 </button>
 
@@ -87,7 +90,6 @@ lista.appendChild(card)
 })
 
 }
-
 function confirmar(i){
 
 let a=agendamentos[i]
