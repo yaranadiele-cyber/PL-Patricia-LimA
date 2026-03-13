@@ -51,7 +51,7 @@ function carregar(){
 
 lista.innerHTML=""
 
-if(agendamentos.length==0){
+if(agendamentos.length===0){
 
 lista.innerHTML="Nenhum agendamento"
 
@@ -63,17 +63,18 @@ agendamentos.forEach((a,index)=>{
 
 let card=document.createElement("div")
 
-card.className="card"
+card.className="card-agenda"
 
 card.innerHTML=`
 
 <strong>${a.nome}</strong>
+<span>Serviço: ${a.servico}</span>
+<span>Data: ${a.data}</span>
+<span>Hora: ${a.hora}</span>
 
-Serviço: ${a.servico}
-
-Data: ${a.data}
-
-Hora: ${a.hora}
+<button onclick="confirmar(${index})">
+Confirmar
+</button>
 
 <button class="cancelar" onclick="cancelar(${index})">
 Cancelar
@@ -87,7 +88,39 @@ lista.appendChild(card)
 
 }
 
+function confirmar(i){
+
+let a=agendamentos[i]
+
+let msg=`Olá ${a.nome}! Seu agendamento foi CONFIRMADO.
+
+Serviço: ${a.servico}
+Data: ${a.data}
+Hora: ${a.hora}
+
+Patricia Lima 💅`
+
+let url=`https://wa.me/55${a.telefone}?text=${encodeURIComponent(msg)}`
+
+window.open(url,"_blank")
+
+}
+
 function cancelar(i){
+
+let a=agendamentos[i]
+
+let msg=`Olá ${a.nome}. Infelizmente seu agendamento foi CANCELADO.
+
+Serviço: ${a.servico}
+Data: ${a.data}
+Hora: ${a.hora}
+
+Entre em contato para reagendar.`
+
+let url=`https://wa.me/55${a.telefone}?text=${encodeURIComponent(msg)}`
+
+window.open(url,"_blank")
 
 agendamentos.splice(i,1)
 

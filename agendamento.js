@@ -1,9 +1,11 @@
 function enviarWhatsapp(){
 
 let nome=document.getElementById("nome").value
+let telefoneCliente=document.getElementById("telefone").value
 let servico=document.getElementById("servico").value
 let data=document.getElementById("data").value
 let hora=document.getElementById("hora").value
+
 
 if(!nome || !data || !hora){
 
@@ -30,6 +32,7 @@ return
 agendamentos.push({
 
 nome:nome,
+telefone:telefoneCliente,
 servico:servico,
 data:data,
 hora:hora

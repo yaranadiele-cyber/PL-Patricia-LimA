@@ -606,11 +606,9 @@ outline:none;
 
 .agenda .botao{
 margin-top:10px;
+cursor: pointer;
 }
 
-.btn-agendar{
-cursor:pointer;
-}
 /* HORARIO DISPONIVEL */
 
 #hora option{
