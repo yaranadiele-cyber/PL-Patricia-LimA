@@ -1,16 +1,44 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-br">
 
 <head>
+
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>Painel de Agendamentos</title>
+
+<link rel="stylesheet" href="style.css">
+
 </head>
 
 <body>
 
+<div class="container">
+
+<div class="logo-area">
+
+<div class="monograma">PL</div>
+
+<h1>Patricia Lima</h1>
+
+<p class="frase">Realçando sua beleza natural</p>
+
+</div>
+
+<section class="agenda">
+
 <h2>Agendamentos</h2>
 
-<ul id="lista"></ul>
+<ul id="lista" style="list-style:none; padding:0;"></ul>
+
+</section>
+
+<a href="index.html" class="botao">
+🏠 Voltar para início
+</a>
+
+</div>
 
 <script>
 
@@ -18,9 +46,22 @@ let lista = document.getElementById("lista")
 
 let agendamentos = JSON.parse(localStorage.getItem("agendamentos")) || []
 
+if(agendamentos.length === 0){
+
+let li = document.createElement("li")
+li.textContent = "Nenhum agendamento ainda."
+lista.appendChild(li)
+
+}else{
+
 agendamentos.forEach(a => {
 
 let li = document.createElement("li")
+
+li.style.marginBottom = "10px"
+li.style.background = "rgba(255,255,255,0.25)"
+li.style.padding = "12px"
+li.style.borderRadius = "10px"
 
 li.textContent = `${a.nome} - ${a.servico} - ${a.data} às ${a.hora}`
 
@@ -28,8 +69,9 @@ lista.appendChild(li)
 
 })
 
+}
+
 </script>
 
 </body>
-
 </html>
