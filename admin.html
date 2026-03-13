@@ -72,11 +72,9 @@ cursor:pointer;
 </a>
 
 </div>
-
 <script>
 
 let lista = document.getElementById("lista")
-
 let agendamentos = JSON.parse(localStorage.getItem("agendamentos")) || []
 
 function carregar(){
@@ -84,24 +82,20 @@ function carregar(){
 lista.innerHTML=""
 
 if(agendamentos.length === 0){
-
 lista.innerHTML="Nenhum agendamento."
-
 return
-
 }
 
 agendamentos.forEach((a,index)=>{
 
 let card = document.createElement("div")
-
 card.className="card-agenda"
 
 card.innerHTML = `
 <strong>${a.nome}</strong>
-Serviço: ${a.servico}
-Data: ${a.data}
-Hora: ${a.hora}
+<span>Serviço: ${a.servico}</span>
+<span>Data: ${a.data}</span>
+<span>Hora: ${a.hora}</span>
 
 <button class="cancelar" onclick="cancelar(${index})">
 Cancelar
