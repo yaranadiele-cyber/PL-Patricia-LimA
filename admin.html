@@ -2,13 +2,46 @@
 <html lang="pt-br">
 
 <head>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>Painel de Agendamentos</title>
 
 <link rel="stylesheet" href="style.css">
+
+<style>
+
+.card-agenda{
+
+background:rgba(255,255,255,0.25);
+backdrop-filter:blur(10px);
+
+padding:15px;
+border-radius:15px;
+
+margin-bottom:15px;
+
+display:flex;
+flex-direction:column;
+gap:8px;
+
+}
+
+.cancelar{
+
+background:#ff7b7b;
+color:white;
+
+border:none;
+padding:8px;
+
+border-radius:20px;
+
+cursor:pointer;
+
+}
+
+</style>
 
 </head>
 
@@ -28,9 +61,9 @@
 
 <section class="agenda">
 
-<h2>Agendamentos</h2>
+<h2>Painel de Agendamentos</h2>
 
-<ul id="lista" style="list-style:none; padding:0;"></ul>
+<div id="lista"></div>
 
 </section>
 
@@ -46,30 +79,52 @@ let lista = document.getElementById("lista")
 
 let agendamentos = JSON.parse(localStorage.getItem("agendamentos")) || []
 
+function carregar(){
+
+lista.innerHTML=""
+
 if(agendamentos.length === 0){
 
-let li = document.createElement("li")
-li.textContent = "Nenhum agendamento ainda."
-lista.appendChild(li)
+lista.innerHTML="Nenhum agendamento."
 
-}else{
+return
 
-agendamentos.forEach(a => {
+}
 
-let li = document.createElement("li")
+agendamentos.forEach((a,index)=>{
 
-li.style.marginBottom = "10px"
-li.style.background = "rgba(255,255,255,0.25)"
-li.style.padding = "12px"
-li.style.borderRadius = "10px"
+let card = document.createElement("div")
 
-li.textContent = `${a.nome} - ${a.servico} - ${a.data} às ${a.hora}`
+card.className="card-agenda"
 
-lista.appendChild(li)
+card.innerHTML = `
+<strong>${a.nome}</strong>
+Serviço: ${a.servico}
+Data: ${a.data}
+Hora: ${a.hora}
+
+<button class="cancelar" onclick="cancelar(${index})">
+Cancelar
+</button>
+`
+
+lista.appendChild(card)
 
 })
 
 }
+
+function cancelar(index){
+
+agendamentos.splice(index,1)
+
+localStorage.setItem("agendamentos",JSON.stringify(agendamentos))
+
+carregar()
+
+}
+
+carregar()
 
 </script>
 
