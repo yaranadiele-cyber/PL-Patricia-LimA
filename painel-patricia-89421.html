@@ -377,15 +377,55 @@ function setCfg(k,v){localStorage.setItem("cfg_"+k,JSON.stringify(v))}
 function fazerLogin(){
   const u=document.getElementById("login-usuario").value.trim();
   const s=document.getElementById("login-senha").value;
-  if(u===getCfg("usuario")&&s===getCfg("senha")){
-    document.getElementById("tela-login").style.display="none";
-    document.getElementById("tela-painel").style.display="block";
-    iniciar();
-  }else{
-    document.getElementById("login-erro").style.display="block";
+
+  // mostra loading no botão
+  const btn = document.querySelector("#tela-login .btn-salvar");
+  const textoOriginal = btn.textContent;
+  btn.textContent = "Verificando...";
+  btn.disabled = true;
+
+  // verifica credenciais: tenta Supabase primeiro, depois localStorage, depois padrão
+  verificarLogin(u, s).then(ok => {
+    btn.textContent = textoOriginal;
+    btn.disabled = false;
+    if (ok) {
+      document.getElementById("tela-login").style.display="none";
+      document.getElementById("tela-painel").style.display="block";
+      iniciar();
+    } else {
+      document.getElementById("login-erro").style.display="block";
+    }
+  });
+}
+
+async function verificarLogin(u, s) {
+  // 1. tenta buscar credenciais salvas no Supabase
+  try {
+    const usuarioDB = await dbGetConfig("usuario", null);
+    const senhDB    = await dbGetConfig("senha",   null);
+    if (usuarioDB && senhDB) {
+      return u === usuarioDB && s === senhDB;
+    }
+  } catch(e) {
+    console.warn("Supabase indisponível no login, usando local");
   }
+
+  // 2. fallback: localStorage
+  const usuarioLocal = localStorage.getItem("cfg_usuario");
+  const senhaLocal   = localStorage.getItem("cfg_senha");
+  if (usuarioLocal && senhaLocal) {
+    return u === JSON.parse(usuarioLocal) && s === JSON.parse(senhaLocal);
+  }
+
+  // 3. fallback final: credenciais padrão
+  return u === DEFAULTS.usuario && s === DEFAULTS.senha;
 }
 document.addEventListener("keydown",e=>{if(e.key==="Enter"&&document.getElementById("tela-login").style.display!=="none")fazerLogin()});
+document.addEventListener("input", e => {
+  if (e.target.id === "login-usuario" || e.target.id === "login-senha") {
+    document.getElementById("login-erro").style.display = "none";
+  }
+});
 function sair(){document.getElementById("tela-login").style.display="block";document.getElementById("tela-painel").style.display="none"}
 
 // ═══════════════════════════════════════════════
@@ -995,9 +1035,15 @@ salvarConfiguracoes = async function() {
   for (const [k,v] of Object.entries(campos)) {
     await dbSetConfig(k, v);
   }
-  const ns = document.getElementById("cfg-senha").value;
-  if (ns) { setCfg("senha", ns); document.getElementById("cfg-senha").value = ""; }
-  toast("Configurações salvas no banco!");
+  const ns = document.getElementById("cfg-senha").value.trim();
+  if (ns) {
+    await dbSetConfig("senha", ns);   // salva no Supabase
+    setCfg("senha", ns);              // salva no localStorage como cache
+    document.getElementById("cfg-senha").value = "";
+    toast("Configurações e nova senha salvos no banco! ✅");
+  } else {
+    toast("Configurações salvas no banco! ✅");
+  }
 };
 
 // Sobrescreve salvarServicos
