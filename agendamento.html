@@ -7,6 +7,19 @@
 <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <style>
+/* ─── TIMER RESERVA ─── */
+#timer-reserva {
+  display: none;
+  background: rgba(240,192,96,0.2);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #7a5700;
+  margin-bottom: 10px;
+  text-align: center;
+  line-height: 1.5;
+}
+
 /* ─── CAMPO DATA DESTAQUE ─── */
 .data-wrapper {
   display: flex;
@@ -333,12 +346,15 @@
           <span id="pix-chave-display"></span>
           <button class="btn-copiar" onclick="copiarChave()">📋 Copiar</button>
         </div>
-        <div class="aviso-pix">✅ Após o pagamento, clique em <strong>"Já paguei"</strong> para finalizar o agendamento pelo WhatsApp.</div>
+        <div class="aviso-pix">✅ Pague o Pix e clique em <strong>"Já paguei"</strong> para enviar o comprovante à Patricia pelo WhatsApp. Ela confirmará em instantes!</div>
         <div class="aguardando-badge"><div class="dot-pulso"></div> Aguardando pagamento</div>
       </div>
 
+      <!-- timer de reserva -->
+      <div id="timer-reserva" style="display:none;background:rgba(240,192,96,0.2);border-radius:12px;padding:10px 14px;font-size:13px;color:#7a5700;margin-bottom:10px;text-align:center;line-height:1.5"></div>
+
       <button class="botao" id="btn-ja-paguei" style="display:none;cursor:pointer;background:#6ecb8b" onclick="finalizarAgendamento()">
-        ✅ Já paguei — Finalizar pelo WhatsApp
+        ✅ Já paguei — Enviar comprovante pelo WhatsApp
       </button>
 
       <button class="botao" style="cursor:pointer;margin-top:10px;background:rgba(255,255,255,0.3);color:#6b4a3f" onclick="voltarEtapa1()">

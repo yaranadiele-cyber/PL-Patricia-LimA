@@ -52,9 +52,18 @@
 .cliente-nome{font-size:17px;font-weight:600;color:#3f2922}
 .info-linha{font-size:13px;color:#6b4a3f;display:flex;align-items:center;gap:6px}
 .status-badge{display:inline-block;font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;margin-top:4px}
+.card-agenda.status-confirmado{border-left-color:#6ecb8b}
+.card-agenda.status-cancelado{border-left-color:#ff7b7b;opacity:.65}
+.card-agenda.status-pendente{border-left-color:#f0c060}
+.card-agenda.status-reservado{border-left-color:#a78bfa}
+.card-agenda.status-aguardando_confirmacao{border-left-color:#38bdf8}
+.card-agenda.status-expirado{border-left-color:#d1d5db;opacity:.5}
 .badge-pendente{background:rgba(240,192,96,.25);color:#7a5700}
 .badge-confirmado{background:rgba(110,203,139,.25);color:#064420}
 .badge-cancelado{background:rgba(255,123,123,.2);color:#7a0000}
+.badge-reservado{background:rgba(167,139,250,.25);color:#4c1d95}
+.badge-aguardando_confirmacao{background:rgba(56,189,248,.2);color:#0c4a6e}
+.badge-expirado{background:rgba(209,213,219,.3);color:#6b7280}
 .acoes-card{display:flex;gap:8px;margin-top:8px}
 .acoes-card button{flex:1;padding:8px;border:none;border-radius:20px;font-size:13px;font-family:Poppins,sans-serif;cursor:pointer;transition:.2s;color:white}
 .btn-confirmar{background:#6ecb8b}
@@ -75,7 +84,17 @@
 .login-box input:focus{background:rgba(255,255,255,.95);box-shadow:0 0 0 2px rgba(227,143,122,.4)}
 .login-erro{color:#7a0000;font-size:13px;margin-bottom:8px;display:none}
 @media(max-width:600px){.aba{font-size:12px;padding:10px 10px}}
-/* ─── CARD SERVIÇO ADMIN ─── */
+/* ─── CARDS PAGAMENTO ─── */
+.pag-card{background:rgba(255,255,255,.28);backdrop-filter:blur(12px);border-radius:20px;padding:16px 18px;box-shadow:0 6px 18px rgba(0,0,0,.12);margin-bottom:12px;display:flex;align-items:center;gap:14px;border-left:4px solid #f0c060}
+.pag-card.status-pago{border-left-color:#6ecb8b}
+.pag-card.status-cancelado,.pag-card.status-expirado{border-left-color:#ff7b7b;opacity:.7}
+.pag-icone{font-size:28px;flex-shrink:0}
+.pag-info{flex:1}
+.pag-nome{font-size:15px;font-weight:600;color:#3f2922}
+.pag-detalhe{font-size:12px;color:#6b4a3f;margin-top:2px}
+.pag-valor{font-size:20px;font-weight:700;color:#6b4a3f;text-align:right;flex-shrink:0}
+.pag-valor span{display:block;font-size:11px;font-weight:400;color:#6b4a3f;opacity:.7;text-align:right}
+
 .sv-admin-card{background:rgba(255,255,255,.4);border-radius:20px;padding:18px;margin-bottom:16px;box-shadow:0 4px 14px rgba(0,0,0,.1);display:grid;grid-template-columns:110px 1fr;gap:14px;align-items:start}
 .sv-admin-foto-wrap{display:flex;flex-direction:column;align-items:center;gap:8px}
 .sv-admin-foto-wrap img{width:100px;height:100px;object-fit:cover;border-radius:14px;border:3px solid #e38f7a;background:#efe4de}
@@ -132,6 +151,7 @@
     <button class="aba"       onclick="mudarAba('servicos',this)">💅 Serviços</button>
     <button class="aba"       onclick="mudarAba('horarios',this)">🕐 Horários</button>
     <button class="aba"       onclick="mudarAba('fotos',this)">🖼️ Fotos</button>
+    <button class="aba"       onclick="mudarAba('pagamentos',this)">💳 Pagamentos</button>
     <button class="aba"       onclick="mudarAba('quemsou',this)">👤 Quem sou</button>
   </div>
 
@@ -145,8 +165,11 @@
         <select id="filtro-status" onchange="renderAgendamentos()">
           <option value="">Todos os status</option>
           <option value="pendente">Pendente</option>
+          <option value="reservado">🟣 Reservado</option>
+          <option value="aguardando_confirmacao">🔵 Aguardando confirmação</option>
           <option value="confirmado">Confirmado</option>
           <option value="cancelado">Cancelado</option>
+          <option value="expirado">Expirado</option>
         </select>
         <button class="btn-secundario" onclick="limparFiltros()">Limpar</button>
       </div>
@@ -266,6 +289,26 @@
         <input type="url" id="input-url-foto" placeholder="https://...">
       </div>
       <button class="btn-salvar" onclick="adicionarFotoURL()">&#10133; Adicionar foto por link</button>
+    </div>
+  </div>
+
+  <!-- ─── ABA PAGAMENTOS ─── -->
+  <div id="sec-pagamentos" class="secao">
+    <div class="stat-row" id="stats-pag"></div>
+    <div class="card-painel">
+      <h3>Histórico de Pagamentos</h3>
+      <div class="filtros" style="margin-bottom:16px">
+        <input type="date" id="filtro-pag-data" onchange="renderPagamentos()" placeholder="Filtrar por data">
+        <select id="filtro-pag-status" onchange="renderPagamentos()">
+          <option value="">Todos os status</option>
+          <option value="pendente">Pendente</option>
+          <option value="pago">Pago ✅</option>
+          <option value="expirado">Expirado</option>
+          <option value="cancelado">Cancelado</option>
+        </select>
+        <button class="btn-secundario" onclick="document.getElementById('filtro-pag-data').value='';document.getElementById('filtro-pag-status').value='';renderPagamentos()">Limpar</button>
+      </div>
+      <div id="lista-pagamentos"></div>
     </div>
   </div>
 
@@ -788,6 +831,7 @@ async function renderAgendamentosDB() {
     <div class="stat-box"><div class="num">${all.length}</div><div class="leg">Total</div></div>
     <div class="stat-box"><div class="num">${all.filter(a=>a.data===hoje).length}</div><div class="leg">Hoje</div></div>
     <div class="stat-box"><div class="num">${all.filter(a=>a.status==="confirmado").length}</div><div class="leg">Confirmados</div></div>
+    <div class="stat-box"><div class="num">${all.filter(a=>a.status==="aguardando_confirmacao").length}</div><div class="leg">🔵 Aguard. comprov.</div></div>
     <div class="stat-box"><div class="num">${all.filter(a=>!a.status||a.status==="pendente").length}</div><div class="leg">Pendentes</div></div>`;
 
   if (!lista.length) {
@@ -795,15 +839,50 @@ async function renderAgendamentosDB() {
     return;
   }
 
+  const STATUS_LABEL = {
+    pendente:                "Pendente",
+    reservado:               "🟣 Reservado",
+    aguardando_confirmacao:  "🔵 Aguard. comprovante",
+    confirmado:              "✅ Confirmado",
+    cancelado:               "❌ Cancelado",
+    expirado:                "⏰ Expirado"
+  };
+
   grid.innerHTML = lista.map(a => {
     const st = a.status || "pendente";
+    const label = STATUS_LABEL[st] || st;
+    const badgeClass = st === "aguardando_confirmacao" ? "badge-aguardando_confirmacao"
+                     : st === "reservado" ? "badge-reservado"
+                     : st === "expirado"  ? "badge-expirado"
+                     : `badge-${st}`;
+
+    // info de reserva temporária
+    let infoReserva = "";
+    if (st === "reservado" && a.reservado_ate) {
+      const expira  = new Date(a.reservado_ate);
+      const restMs  = expira - new Date();
+      if (restMs > 0) {
+        const min = Math.floor(restMs / 60000);
+        const seg = Math.floor((restMs % 60000) / 1000);
+        infoReserva = `<div class="info-linha" style="color:#7a3db8">⏳ Expira em ${min}:${String(seg).padStart(2,"0")}</div>`;
+      } else {
+        infoReserva = `<div class="info-linha" style="color:#999">⏰ Reserva expirada</div>`;
+      }
+    }
+
+    // valor pix se houver
+    const infoPix = a.pix_valor
+      ? `<div class="info-linha">💰 Pix: R$ ${Number(a.pix_valor).toFixed(2)} (${a.pagamento || "—"})</div>`
+      : "";
+
     return `<div class="card-agenda status-${st}">
       <div class="cliente-nome">${a.nome}</div>
       <div class="info-linha">💅 ${a.servico}</div>
       <div class="info-linha">📅 ${fmtData(a.data)} às ${a.hora}</div>
       <div class="info-linha">📱 ${a.telefone||"—"}</div>
-      ${a.pagamento ? `<div class="info-linha">💳 ${a.pagamento === "total" ? "Pagamento total" : "Entrada " + a.pagamento + "%"}</div>` : ""}
-      <span class="status-badge badge-${st}">${st.charAt(0).toUpperCase()+st.slice(1)}</span>
+      ${infoPix}
+      ${infoReserva}
+      <span class="status-badge ${badgeClass}">${label}</span>
       <div class="acoes-card">
         <button class="btn-confirmar"     onclick="confirmarDB('${a.id}','${a.nome}','${a.servico}','${a.data}','${a.hora}','${a.telefone||""}')">✅ Confirmar</button>
         <button class="btn-cancelar-card" onclick="cancelarDB('${a.id}','${a.nome}','${a.servico}','${a.data}','${a.hora}','${a.telefone||""}')">❌ Cancelar</button>
@@ -836,13 +915,22 @@ function normalizarTel(tel) {
 
 async function confirmarDB(id, nome, servico, data, hora, tel) {
   // Abre o WhatsApp ANTES do await para não ser bloqueado pelo navegador
-  const msg = (getCfg("msgConfirmacao") || "Olá {nome}! Seu agendamento foi CONFIRMADO.\n\nServiço: {servico}\nData: {data}\nHora: {hora}\n\nPatricia Lima 💅")
+  const msg = (getCfg("msgConfirmacao") || "Olá {nome}! Seu agendamento foi CONFIRMADO. ✅\n\nServiço: {servico}\nData: {data}\nHora: {hora}\n\nSeu horário está garantido! Até lá 💅\n— Patricia Lima")
     .replace("{nome}", nome).replace("{servico}", servico)
     .replace("{data}", fmtData(data)).replace("{hora}", hora);
   const t = normalizarTel(tel);
   if (t) window.open(`https://wa.me/${t}?text=${encodeURIComponent(msg)}`, "_blank");
+
+  // atualiza agendamento
   await dbAtualizarStatus(id, "confirmado");
-  toast("Agendamento confirmado!");
+
+  // atualiza histórico de pagamentos se existir
+  await sb.from("pagamentos")
+    .update({ status: "pago", pago_em: new Date().toISOString() })
+    .eq("agendamento_id", id)
+    .neq("status", "pago");
+
+  toast("Agendamento confirmado! ✅");
   renderAgendamentosDB();
 }
 
@@ -947,6 +1035,90 @@ salvarQuemSou = async function() {
   setCfg("quemSouTitulo", titulo);
   setCfg("quemSouTexto",  texto);
   toast("'Quem sou' salvo no banco!");
+};
+
+// ═══════════════════════════════════════════════
+//  ABA PAGAMENTOS
+// ═══════════════════════════════════════════════
+async function renderPagamentos() {
+  const lista  = document.getElementById("lista-pagamentos");
+  const statsEl = document.getElementById("stats-pag");
+  if (!lista) return;
+
+  lista.innerHTML = '<div class="empty-state">Carregando...</div>';
+
+  const fd = document.getElementById("filtro-pag-data")?.value   || "";
+  const fs = document.getElementById("filtro-pag-status")?.value || "";
+
+  let query = sb.from("pagamentos")
+    .select("*, agendamentos(nome, telefone, servico, data, hora)")
+    .order("criado_em", { ascending: false });
+
+  if (fs) query = query.eq("status", fs);
+
+  const { data, error } = await query;
+  if (error) { lista.innerHTML = '<div class="empty-state">Erro ao carregar pagamentos.</div>'; return; }
+
+  let rows = data || [];
+
+  // filtra por data do agendamento (se filtro preenchido)
+  if (fd) rows = rows.filter(p => p.agendamentos?.data === fd);
+
+  // Stats
+  const total     = rows.length;
+  const pagos     = rows.filter(p => p.status === "pago");
+  const pendentes = rows.filter(p => p.status === "pendente");
+  const recebido  = pagos.reduce((s, p) => s + Number(p.valor_recebido || p.valor || 0), 0);
+
+  statsEl.innerHTML = `
+    <div class="stat-box"><div class="num">${total}</div><div class="leg">Total</div></div>
+    <div class="stat-box"><div class="num">${pagos.length}</div><div class="leg">Pagos ✅</div></div>
+    <div class="stat-box"><div class="num">${pendentes.length}</div><div class="leg">Pendentes</div></div>
+    <div class="stat-box"><div class="num">R$ ${recebido.toFixed(2)}</div><div class="leg">Recebido</div></div>`;
+
+  if (!rows.length) {
+    lista.innerHTML = '<div class="empty-state">Nenhum pagamento encontrado.</div>';
+    return;
+  }
+
+  const icones = { pago: "✅", pendente: "⏳", expirado: "⏰", cancelado: "❌" };
+  const labels = { pago: "Pago", pendente: "Aguardando", expirado: "Expirado", cancelado: "Cancelado" };
+
+  lista.innerHTML = rows.map(p => {
+    const ag      = p.agendamentos || {};
+    const dataFmt = ag.data ? ag.data.split("-").reverse().join("/") : "—";
+    const pagoEm  = p.pago_em  ? new Date(p.pago_em).toLocaleString("pt-BR")  : "—";
+    const criadoEm= p.criado_em? new Date(p.criado_em).toLocaleString("pt-BR"): "—";
+    const st      = p.status || "pendente";
+    const valor   = p.valor_recebido || p.valor || 0;
+
+    return `
+      <div class="pag-card status-${st}">
+        <div class="pag-icone">${icones[st] || "💳"}</div>
+        <div class="pag-info">
+          <div class="pag-nome">${ag.nome || "—"}</div>
+          <div class="pag-detalhe">💅 ${ag.servico || "—"} &nbsp;|&nbsp; 📅 ${dataFmt} às ${ag.hora || "—"}</div>
+          <div class="pag-detalhe">📱 ${ag.telefone || "—"}</div>
+          <div class="pag-detalhe" style="margin-top:4px">
+            <span class="status-badge badge-${st === 'pago' ? 'confirmado' : st === 'pendente' ? 'pendente' : 'cancelado'}">${labels[st] || st}</span>
+            &nbsp; Gerado: ${criadoEm}
+            ${p.pago_em ? `&nbsp;|&nbsp; Pago: ${pagoEm}` : ""}
+          </div>
+          ${p.txid ? `<div class="pag-detalhe" style="font-size:10px;opacity:.6">txid: ${p.txid}</div>` : ""}
+        </div>
+        <div class="pag-valor">
+          R$ ${Number(valor).toFixed(2)}
+          <span>${p.status === "pago" ? "recebido" : "esperado"}</span>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+// Carrega pagamentos quando muda para a aba
+const _mudarAbaOriginal = mudarAba;
+mudarAba = function(id, btn) {
+  _mudarAbaOriginal(id, btn);
+  if (id === "pagamentos") renderPagamentos();
 };
 </script>
 </html>

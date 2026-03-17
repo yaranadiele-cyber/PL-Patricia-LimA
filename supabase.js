@@ -46,19 +46,27 @@ async function dbDeletarAgendamento(id) {
 }
 
 async function dbVerificarConflito(data, hora) {
-  // Se a data/hora já passaram, considera livre automaticamente
+  // horário já passou = livre
   const agora = new Date();
-  const dataHoraAgendamento = new Date(`${data}T${hora}:00`);
-  if (dataHoraAgendamento < agora) return false;
+  if (new Date(`${data}T${hora}:00`) < agora) return false;
 
   const { data: rows, error } = await sb
     .from("agendamentos")
-    .select("id")
+    .select("id, status, reservado_ate")
     .eq("data", data)
     .eq("hora", hora)
-    .neq("status", "cancelado");
-  if (error) return false;
-  return rows && rows.length > 0;
+    .neq("status", "cancelado")
+    .neq("status", "expirado");
+
+  if (error || !rows?.length) return false;
+
+  // bloqueia só se houver agendamento ativo (reserva não expirada ou já confirmado)
+  return rows.some(r => {
+    if (r.status === "reservado" && r.reservado_ate) {
+      return new Date(r.reservado_ate) > agora;
+    }
+    return true; // pendente / confirmado / aguardando_confirmacao = bloqueado
+  });
 }
 
 // ═══════════════════════════════════════════════
