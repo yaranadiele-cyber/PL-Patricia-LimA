@@ -81,21 +81,32 @@ async function carregarHorarios() {
 
   let ocupados = [];
   if (dataSel) {
-    const { data } = await sb.from("agendamentos")
+    // tenta buscar com colunas novas (reservado_ate, status)
+    let rows = null;
+    const { data, error } = await sb.from("agendamentos")
       .select("hora, data, status, reservado_ate")
       .eq("data", dataSel)
       .neq("status", "cancelado")
       .neq("status", "expirado");
 
-    ocupados = (data || []).filter(r => {
-      const dataHora = new Date(`${r.data}T${r.hora}:00`);
-      if (dataHora < agora) return false; // horário já ocorreu = livre
+    if (error) {
+      // fallback: busca só os campos básicos se colunas novas não existirem
+      const { data: data2 } = await sb.from("agendamentos")
+        .select("hora, data, status")
+        .eq("data", dataSel)
+        .neq("status", "cancelado");
+      rows = data2;
+    } else {
+      rows = data;
+    }
 
-      // reserva temporária: só bloqueia se ainda não expirou
+    ocupados = (rows || []).filter(r => {
+      const dataHora = new Date(`${r.data}T${r.hora}:00`);
+      if (dataHora < agora) return false;
       if (r.status === "reservado" && r.reservado_ate) {
         return new Date(r.reservado_ate) > agora;
       }
-      return true; // confirmado / pendente / aguardando = bloqueado
+      return true;
     }).map(r => r.hora);
   }
 
@@ -326,22 +337,31 @@ async function enviarComprovanteWhatsapp(modoPag, valorPago) {
   const numeroWpp = normalizarTel(await dbGetConfig("whatsapp", getCfgLocal("whatsapp", "5582996692302")));
   const pixChave  = await dbGetConfig("pixChave", getCfgLocal("pixChave", "yaranadiele@gmail.com"));
 
-  // muda status para aguardando_confirmacao
+  // muda status para aguardando_confirmacao (com fallback se coluna pix_valor não existir)
   if (id) {
-    await sb.from("agendamentos").update({
+    // tenta update completo
+    const { error: errUpdate } = await sb.from("agendamentos").update({
       status:    "aguardando_confirmacao",
       pagamento: modoPag,
       pix_valor: valorPago
     }).eq("id", id);
 
-    // salva no histórico de pagamentos
+    // se falhar (coluna pix_valor não existe ainda), faz update básico
+    if (errUpdate) {
+      await sb.from("agendamentos").update({
+        status:    "aguardando_confirmacao",
+        pagamento: modoPag
+      }).eq("id", id);
+    }
+
+    // salva no histórico de pagamentos (silencia erro se tabela não existir)
     await sb.from("pagamentos").upsert([{
       agendamento_id: id,
       valor:          valorPago,
       status:         "aguardando_confirmacao",
       descricao:      `${servico} - ${dataFmt} às ${hora}`,
       criado_em:      new Date().toISOString()
-    }], { onConflict: "agendamento_id" }).catch(e => console.warn("pagamentos upsert:", e));
+    }], { onConflict: "agendamento_id" }).catch(e => console.warn("pagamentos:", e));
   }
 
   let linhaPag = "";

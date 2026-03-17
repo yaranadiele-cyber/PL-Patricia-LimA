@@ -1,63 +1,63 @@
 <!DOCTYPE html>
 <html lang="pt-br">
-
 <head>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Quem Sou</title>
-
+<title>Quem Sou — Patricia Lima</title>
 <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
-
 <link rel="stylesheet" href="style.css">
-
 </head>
-
 <body>
-
 <div class="container">
 
 <div class="logo-area">
-
-<div class="monograma">PL</div>
-
-<h1>Patricia Lima</h1>
-
-<p class="frase">"Beleza que realça você."</p>
-
+  <div class="monograma">PL</div>
+  <h1>Patricia Lima</h1>
+  <p class="frase" id="frase-site">"Beleza que realça você."</p>
 </div>
-
 
 <section class="quem">
-
-<img src="img/patricia.jpeg" class="foto-perfil">
-
-<h2>Quem Sou</h2>
-
-<p>
-Me chamo Patricia Lima, sou profissional da área da beleza em Arapiraca/AL, dedicada a elevar a autoestima e realçar a beleza natural de cada cliente. Atuo com maquiagem, penteados, design de sobrancelhas, unhas e cuidados capilares, sempre oferecendo um atendimento personalizado e de alta qualidade. Acredito que cada detalhe faz diferença. Por isso, uno técnica, criatividade e sensibilidade em cada serviço, garantindo não apenas um resultado impecável, mas uma experiência completa. Meu compromisso é fazer com que cada pessoa se sinta confiante, valorizada e plenamente satisfeita com o resultado.
-</p>
-
+  <img src="img/patricia.jpeg" class="foto-perfil" id="qs-foto-img">
+  <h2 id="qs-titulo-txt">Quem Sou</h2>
+  <p id="qs-texto-txt">
+    Me chamo Patricia Lima, sou profissional da área da beleza em Arapiraca/AL, dedicada a elevar a autoestima e realçar a beleza natural de cada cliente. Atuo com maquiagem, penteados, design de sobrancelhas, unhas e cuidados capilares, sempre oferecendo um atendimento personalizado e de alta qualidade. Acredito que cada detalhe faz diferença. Por isso, uno técnica, criatividade e sensibilidade em cada serviço, garantindo não apenas um resultado impecável, mas uma experiência completa. Meu compromisso é fazer com que cada pessoa se sinta confiante, valorizada e plenamente satisfeita com o resultado.
+  </p>
 </section>
 
-<a href="index.html" class="botao">
-🏠 Voltar para início
-</a>
+<a href="index.html" class="botao">🏠 Voltar para início</a>
 
 <footer>
-
-<div class="rodape-box">
-
-<p>@patricialima1302</p>
-<p>© 2026 Patricia Lima</p>
-<p>Site desenvolvido por <b>Nadiele Iara</b></p>
-
-</div>
-
+  <div class="rodape-box">
+    <p id="rodape-insta">@patricialima1302</p>
+    <p>© 2026 Patricia Lima</p>
+    <p>Site desenvolvido por <b>Nadiele Iara</b></p>
+  </div>
 </footer>
 
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase.js"></script>
+<script>
+window.onload = async function() {
+  function getCfgLocal(key, fallback) {
+    const raw = localStorage.getItem("cfg_" + key);
+    return raw !== null ? JSON.parse(raw) : fallback;
+  }
+  try {
+    const frase  = await dbGetConfig("frase",         getCfgLocal("frase",         null));
+    const foto   = await dbGetConfig("quemSouFoto",   getCfgLocal("quemSouFoto",   null));
+    const titulo = await dbGetConfig("quemSouTitulo", getCfgLocal("quemSouTitulo", null));
+    const texto  = await dbGetConfig("quemSouTexto",  getCfgLocal("quemSouTexto",  null));
+    const insta  = await dbGetConfig("instagram",     getCfgLocal("instagram",     null));
+
+    if (frase)  document.getElementById("frase-site").textContent   = frase;
+    if (foto)   document.getElementById("qs-foto-img").src          = foto;
+    if (titulo) document.getElementById("qs-titulo-txt").textContent = titulo;
+    if (texto)  document.getElementById("qs-texto-txt").textContent  = texto;
+    if (insta)  document.getElementById("rodape-insta").textContent  = "@" + insta;
+  } catch(e) { console.warn("Erro ao carregar dados:", e); }
+};
+</script>
 </body>
 </html>
