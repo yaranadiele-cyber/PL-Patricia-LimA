@@ -46,6 +46,11 @@ async function dbDeletarAgendamento(id) {
 }
 
 async function dbVerificarConflito(data, hora) {
+  // Se a data/hora já passaram, considera livre automaticamente
+  const agora = new Date();
+  const dataHoraAgendamento = new Date(`${data}T${hora}:00`);
+  if (dataHoraAgendamento < agora) return false;
+
   const { data: rows, error } = await sb
     .from("agendamentos")
     .select("id")

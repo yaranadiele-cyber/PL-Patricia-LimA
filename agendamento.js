@@ -94,16 +94,48 @@ async function carregarHorarios() {
   let ocupados = [];
   if (dataSel) {
     const { data } = await sb.from("agendamentos")
-      .select("hora")
+      .select("hora, data")
       .eq("data", dataSel)
       .neq("status", "cancelado");
-    ocupados = (data || []).map(r => r.hora);
+
+    const agora = new Date();
+
+    // um horário está ocupado se: existe no banco E o horário ainda não passou
+    ocupados = (data || [])
+      .filter(r => {
+        const dataHora = new Date(`${r.data}T${r.hora}:00`);
+        return dataHora >= agora; // só bloqueia se ainda não passou
+      })
+      .map(r => r.hora);
   }
 
-  horaSelect.innerHTML = horariosAtivos.map(h => {
-    const ocupado = ocupados.includes(h);
-    return `<option value="${h}" ${ocupado ? "disabled" : ""}>${h}${ocupado ? " (ocupado)" : ""}</option>`;
-  }).join("");
+  // horário atual para filtrar passados no dia de hoje
+  const agora = new Date();
+  const hoje  = agora.toISOString().split("T")[0];
+
+  const opcoes = horariosAtivos.map(h => {
+    // se for hoje, verifica se o horário já passou
+    const jaPassou = dataSel === hoje && new Date(`${dataSel}T${h}:00`) < agora;
+    const ocupado  = ocupados.includes(h);
+
+    if (jaPassou) {
+      return `<option value="${h}" disabled>${h} (encerrado)</option>`;
+    }
+    if (ocupado) {
+      return `<option value="${h}" disabled>${h} (ocupado)</option>`;
+    }
+    return `<option value="${h}">${h}</option>`;
+  });
+
+  // remove horários encerrados/passados da lista se quiser ocultar (opcional: só desabilitar)
+  horaSelect.innerHTML = opcoes.join("");
+
+  // se o primeiro item está desabilitado, seleciona o primeiro disponível
+  const primeiroDisponivel = horariosAtivos.find(h => {
+    const jaPassou = dataSel === hoje && new Date(`${dataSel}T${h}:00`) < agora;
+    return !jaPassou && !ocupados.includes(h);
+  });
+  if (primeiroDisponivel) horaSelect.value = primeiroDisponivel;
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -128,7 +160,15 @@ async function irParaPagamento() {
     return;
   }
 
-  // verifica conflito no banco
+  // verifica se o horário já passou
+  const dataHoraEscolhida = new Date(`${data}T${hora}:00`);
+  if (dataHoraEscolhida < new Date()) {
+    alert("Este horário já passou. Por favor, escolha outra data ou horário.");
+    await carregarHorarios();
+    return;
+  }
+
+  // verifica conflito no banco (outro cliente pode ter agendado ao mesmo tempo)
   const conflito = await dbVerificarConflito(data, hora);
   if (conflito) {
     alert("Esse horário já está ocupado. Por favor, escolha outro.");
