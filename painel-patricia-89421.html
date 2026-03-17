@@ -1,140 +1,582 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Painel Patricia Lima</title>
-
+<title>Painel Admin — Patricia Lima</title>
+<link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
-
 <style>
-
-.card{
-background:rgba(255,255,255,0.25);
-backdrop-filter:blur(10px);
-padding:15px;
-border-radius:15px;
-margin-bottom:15px;
-display:flex;
-flex-direction:column;
-gap:6px;
-}
-
-.cancelar{
-background:#ff7b7b;
-color:white;
-border:none;
-padding:8px;
-border-radius:20px;
-cursor:pointer;
-}
-
+.painel-wrapper{max-width:900px;width:100%;margin:20px auto;padding:10px}
+.painel-logo{text-align:center;margin-bottom:24px}
+.painel-logo .monograma{font-family:'Great Vibes';font-size:42px;color:#6b4a3f}
+.painel-logo h1{font-family:'Great Vibes';font-size:46px;color:#6b4a3f;margin:4px 0}
+.painel-logo p{font-size:13px;color:#6b4a3f}
+.abas{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.aba{flex:1;min-width:130px;padding:12px 14px;border-radius:30px;border:none;background:rgba(255,255,255,0.25);backdrop-filter:blur(10px);color:#6b4a3f;font-family:Poppins,sans-serif;font-size:14px;font-weight:500;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.12);transition:.3s}
+.aba.ativa{background:#e38f7a;color:white;box-shadow:0 6px 18px rgba(227,143,122,.4)}
+.aba:hover:not(.ativa){background:rgba(255,255,255,.45);transform:translateY(-2px)}
+.secao{display:none}
+.secao.ativa{display:block}
+.card-painel{background:rgba(255,255,255,.28);backdrop-filter:blur(12px);border-radius:25px;padding:28px 24px;box-shadow:0 10px 28px rgba(0,0,0,.15);margin-bottom:20px}
+.card-painel h3{font-family:'Great Vibes';font-size:28px;color:#6b4a3f;margin-bottom:18px}
+.campo-admin{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.campo-admin label{font-size:13px;font-weight:500;color:#6b4a3f}
+.campo-admin input,.campo-admin select,.campo-admin textarea{padding:12px 14px;border:none;border-radius:14px;font-size:14px;font-family:Poppins,sans-serif;outline:none;background:rgba(255,255,255,.7);color:#3f2922;transition:.2s}
+.campo-admin input:focus,.campo-admin select:focus,.campo-admin textarea:focus{background:rgba(255,255,255,.95);box-shadow:0 0 0 2px rgba(227,143,122,.4)}
+.campo-admin textarea{resize:vertical;min-height:80px}
+.grade-horarios{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:10px;margin-top:8px}
+.horario-toggle input{display:none}
+.horario-toggle label{display:flex;align-items:center;justify-content:center;padding:10px;border-radius:14px;background:rgba(255,255,255,.5);color:#3f2922;font-size:14px;font-weight:500;cursor:pointer;transition:.2s;box-shadow:0 3px 8px rgba(0,0,0,.1);user-select:none}
+.horario-toggle input:checked+label{background:#6ecb8b;color:#064420;box-shadow:0 4px 12px rgba(110,203,139,.35)}
+.horario-toggle label:hover{transform:scale(1.05)}
+.servico-item{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.45);border-radius:14px;padding:10px 14px;margin-bottom:8px}
+.servico-item input[type="text"],.servico-item input[type="number"]{flex:1;padding:8px 10px;border:none;border-radius:10px;font-size:13px;font-family:Poppins,sans-serif;background:rgba(255,255,255,.8);outline:none;color:#3f2922}
+.servico-item input[type="number"]{max-width:90px}
+.btn-remover{background:#ff7b7b;color:white;border:none;width:30px;height:30px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.2s}
+.btn-remover:hover{transform:scale(1.1)}
+.btn-salvar{width:100%;padding:14px;background:#e38f7a;color:white;border:none;border-radius:30px;font-size:16px;font-family:Poppins,sans-serif;font-weight:500;cursor:pointer;box-shadow:0 8px 20px rgba(227,143,122,.35);transition:.3s;margin-top:8px}
+.btn-salvar:hover{transform:scale(1.03);box-shadow:0 10px 24px rgba(227,143,122,.5)}
+.btn-secundario{padding:10px 18px;background:rgba(255,255,255,.4);color:#6b4a3f;border:none;border-radius:20px;font-size:14px;font-family:Poppins,sans-serif;cursor:pointer;transition:.2s;box-shadow:0 3px 8px rgba(0,0,0,.1)}
+.btn-secundario:hover{background:rgba(255,255,255,.65)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#6ecb8b;color:#064420;padding:12px 24px;border-radius:30px;font-size:14px;font-weight:500;font-family:Poppins,sans-serif;box-shadow:0 8px 20px rgba(0,0,0,.2);transition:transform .4s cubic-bezier(.34,1.56,.64,1),opacity .3s;z-index:999;opacity:0}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+.filtros{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.filtros input,.filtros select{padding:10px 14px;border:none;border-radius:14px;font-size:13px;font-family:Poppins,sans-serif;background:rgba(255,255,255,.7);color:#3f2922;outline:none;flex:1;min-width:130px}
+.agenda-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+.card-agenda{background:rgba(255,255,255,.28);backdrop-filter:blur(12px);border-radius:20px;padding:18px;box-shadow:0 8px 22px rgba(0,0,0,.15);display:flex;flex-direction:column;gap:6px;transition:.3s;border-left:4px solid transparent}
+.card-agenda:hover{transform:translateY(-4px)}
+.card-agenda.status-confirmado{border-left-color:#6ecb8b}
+.card-agenda.status-cancelado{border-left-color:#ff7b7b;opacity:.65}
+.card-agenda.status-pendente{border-left-color:#f0c060}
+.cliente-nome{font-size:17px;font-weight:600;color:#3f2922}
+.info-linha{font-size:13px;color:#6b4a3f;display:flex;align-items:center;gap:6px}
+.status-badge{display:inline-block;font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;margin-top:4px}
+.badge-pendente{background:rgba(240,192,96,.25);color:#7a5700}
+.badge-confirmado{background:rgba(110,203,139,.25);color:#064420}
+.badge-cancelado{background:rgba(255,123,123,.2);color:#7a0000}
+.acoes-card{display:flex;gap:8px;margin-top:8px}
+.acoes-card button{flex:1;padding:8px;border:none;border-radius:20px;font-size:13px;font-family:Poppins,sans-serif;cursor:pointer;transition:.2s;color:white}
+.btn-confirmar{background:#6ecb8b}
+.btn-cancelar-card{background:#ff7b7b}
+.btn-confirmar:hover,.btn-cancelar-card:hover{filter:brightness(1.1)}
+.empty-state{text-align:center;padding:40px;color:#6b4a3f;font-size:15px;opacity:.7;grid-column:1/-1}
+.stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:20px}
+.stat-box{background:rgba(255,255,255,.3);backdrop-filter:blur(10px);border-radius:18px;padding:16px;text-align:center;box-shadow:0 5px 15px rgba(0,0,0,.1)}
+.stat-box .num{font-size:28px;font-weight:600;color:#3f2922}
+.stat-box .leg{font-size:12px;color:#6b4a3f;margin-top:2px}
+.rodape-painel{text-align:center;margin-top:30px;font-size:12px;color:rgba(107,74,63,.7);padding-bottom:20px}
+/* LOGIN */
+.login-box{max-width:380px;margin:60px auto;background:rgba(255,255,255,.3);backdrop-filter:blur(14px);border-radius:28px;padding:36px 28px;box-shadow:0 14px 35px rgba(0,0,0,.18);text-align:center}
+.login-box .monograma{font-family:'Great Vibes';font-size:52px;color:#6b4a3f}
+.login-box h2{font-family:'Great Vibes';font-size:36px;color:#6b4a3f;margin:8px 0 6px}
+.login-box p{font-size:13px;color:#6b4a3f;margin-bottom:24px}
+.login-box input{width:100%;padding:13px 16px;border:none;border-radius:14px;font-size:14px;font-family:Poppins,sans-serif;background:rgba(255,255,255,.7);color:#3f2922;outline:none;margin-bottom:12px;box-sizing:border-box}
+.login-box input:focus{background:rgba(255,255,255,.95);box-shadow:0 0 0 2px rgba(227,143,122,.4)}
+.login-erro{color:#7a0000;font-size:13px;margin-bottom:8px;display:none}
+@media(max-width:600px){.aba{font-size:12px;padding:10px 10px}}
+/* ─── FOTOS ─── */
+.foto-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;margin-bottom:12px}
+.foto-card{position:relative;border-radius:14px;overflow:hidden;aspect-ratio:1;box-shadow:0 4px 12px rgba(0,0,0,.15)}
+.foto-card img{width:100%;height:100%;object-fit:cover;display:block}
+.foto-card .btn-del-foto{position:absolute;top:6px;right:6px;background:rgba(255,60,60,.85);color:white;border:none;width:26px;height:26px;border-radius:50%;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s}
+.foto-card .btn-del-foto:hover{transform:scale(1.15)}
+.foto-card .foto-ordem{position:absolute;bottom:6px;left:6px;background:rgba(0,0,0,.5);color:white;font-size:11px;padding:2px 7px;border-radius:10px;font-family:Poppins,sans-serif}
 </style>
-
 </head>
-
 <body>
 
-<h2>Painel de Agendamentos</h2>
+<!-- ═══ TELA DE LOGIN ═══ -->
+<div id="tela-login">
+  <div class="login-box">
+    <div class="monograma">PL</div>
+    <h2>Patricia Lima</h2>
+    <p>Painel Administrativo — Acesso restrito</p>
+    <input type="text"     id="login-usuario" placeholder="Usuário" autocomplete="username">
+    <input type="password" id="login-senha"   placeholder="Senha"   autocomplete="current-password">
+    <p class="login-erro" id="login-erro">Usuário ou senha incorretos.</p>
+    <button class="btn-salvar" onclick="fazerLogin()">Entrar</button>
+  </div>
+</div>
 
-<div id="lista" class="painel-agendamentos"></div>
+<!-- ═══ PAINEL PRINCIPAL ═══ -->
+<div id="tela-painel" style="display:none">
+<div class="painel-wrapper">
+
+  <div class="painel-logo">
+    <div class="monograma">PL</div>
+    <h1>Patricia Lima</h1>
+    <p>Painel Administrativo</p>
+  </div>
+
+  <div class="abas">
+    <button class="aba ativa" onclick="mudarAba('agendamentos',this)">📅 Agendamentos</button>
+    <button class="aba"       onclick="mudarAba('configuracoes',this)">⚙️ Configurações</button>
+    <button class="aba"       onclick="mudarAba('servicos',this)">💅 Serviços</button>
+    <button class="aba"       onclick="mudarAba('horarios',this)">🕐 Horários</button>
+    <button class="aba"       onclick="mudarAba('fotos',this)">🖼️ Fotos</button>
+  </div>
+
+  <!-- ─── ABA AGENDAMENTOS ─── -->
+  <div id="sec-agendamentos" class="secao ativa">
+    <div class="stat-row" id="stats"></div>
+    <div class="card-painel">
+      <h3>Agendamentos</h3>
+      <div class="filtros">
+        <input type="date" id="filtro-data" onchange="renderAgendamentos()">
+        <select id="filtro-status" onchange="renderAgendamentos()">
+          <option value="">Todos os status</option>
+          <option value="pendente">Pendente</option>
+          <option value="confirmado">Confirmado</option>
+          <option value="cancelado">Cancelado</option>
+        </select>
+        <button class="btn-secundario" onclick="limparFiltros()">Limpar</button>
+      </div>
+      <div class="agenda-grid" id="lista-agendamentos"></div>
+    </div>
+  </div>
+
+  <!-- ─── ABA CONFIGURAÇÕES ─── -->
+  <div id="sec-configuracoes" class="secao">
+    <div class="card-painel">
+      <h3>Configurações Gerais</h3>
+      <div class="campo-admin">
+        <label>Seu nome (exibido no site)</label>
+        <input type="text" id="cfg-nome" placeholder="Ex: Patricia Lima">
+      </div>
+      <div class="campo-admin">
+        <label>Frase do site</label>
+        <input type="text" id="cfg-frase" placeholder="Ex: Realçando sua beleza natural">
+      </div>
+      <div class="campo-admin">
+        <label>WhatsApp (com código do país, sem espaços)</label>
+        <input type="tel" id="cfg-whatsapp" placeholder="Ex: 5582996692302">
+      </div>
+      <div class="campo-admin">
+        <label>Instagram (sem @)</label>
+        <input type="text" id="cfg-instagram" placeholder="Ex: patricialima1302">
+      </div>
+      <div class="campo-admin">
+        <label>Mensagem de confirmação de agendamento</label>
+        <textarea id="cfg-msg-confirmacao" rows="4" placeholder="Use {nome}, {servico}, {data}, {hora}"></textarea>
+      </div>
+      <div class="campo-admin">
+        <label>Mensagem de cancelamento</label>
+        <textarea id="cfg-msg-cancelamento" rows="4" placeholder="Use {nome}, {servico}, {data}, {hora}"></textarea>
+      </div>
+      <div class="campo-admin">
+        <label>Nova senha do painel (deixe vazio para não alterar)</label>
+        <input type="password" id="cfg-senha" placeholder="Nova senha">
+      </div>
+      <div style="border-top:1px solid rgba(107,74,63,.15);margin:18px 0 16px"></div>
+      <p style="font-size:14px;font-weight:500;color:#6b4a3f;margin-bottom:14px">💳 Configurações de Pagamento Pix</p>
+      <div class="campo-admin">
+        <label>Chave Pix (CPF, telefone, e-mail ou chave aleatória)</label>
+        <input type="text" id="cfg-pix-chave" placeholder="Ex: 082.123.456-78">
+      </div>
+      <div class="campo-admin">
+        <label>Nome que aparece no Pix</label>
+        <input type="text" id="cfg-pix-nome" placeholder="Ex: Patricia Lima">
+      </div>
+      <div class="campo-admin">
+        <label>Percentual de entrada (0 = não exigir entrada)</label>
+        <select id="cfg-pix-entrada">
+          <option value="0">Não exigir entrada — pagamento total no dia</option>
+          <option value="50">50% de entrada obrigatória</option>
+          <option value="30">30% de entrada obrigatória</option>
+          <option value="opcao">Cliente escolhe: 50% ou total</option>
+        </select>
+      </div>
+      <button class="btn-salvar" onclick="salvarConfiguracoes()">💾 Salvar configurações</button>
+    </div>
+  </div>
+
+  <!-- ─── ABA SERVIÇOS ─── -->
+  <div id="sec-servicos" class="secao">
+    <div class="card-painel">
+      <h3>Meus Serviços</h3>
+      <p style="font-size:13px;color:#6b4a3f;margin-bottom:16px">Edite nomes e preços. Os serviços salvos aqui aparecem no agendamento automaticamente.</p>
+      <div id="lista-servicos"></div>
+      <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+        <button class="btn-secundario" onclick="adicionarServico()">+ Adicionar serviço</button>
+        <button class="btn-salvar" style="flex:1" onclick="salvarServicos()">💾 Salvar serviços</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── ABA HORÁRIOS ─── -->
+  <div id="sec-horarios" class="secao">
+    <div class="card-painel">
+      <h3>Horários Disponíveis</h3>
+      <p style="font-size:13px;color:#6b4a3f;margin-bottom:16px">Marque os horários em que você atende. Eles aparecem para os clientes no agendamento.</p>
+      <div class="grade-horarios" id="grade-horarios"></div>
+      <button class="btn-salvar" style="margin-top:20px" onclick="salvarHorarios()">💾 Salvar horários</button>
+    </div>
+    <div class="card-painel">
+      <h3>Bloquear Data</h3>
+      <p style="font-size:13px;color:#6b4a3f;margin-bottom:12px">Bloqueie dias de folga, férias ou feriados. Nenhum cliente conseguirá agendar nessa data.</p>
+      <div class="campo-admin">
+        <label>Data a bloquear</label>
+        <input type="date" id="data-bloqueio">
+      </div>
+      <button class="btn-salvar" onclick="bloquearData()">🚫 Bloquear data</button>
+      <div id="datas-bloqueadas" style="margin-top:16px"></div>
+    </div>
+  </div>
+
+
+  <!-- ─── ABA FOTOS ─── -->
+  <div id="sec-fotos" class="secao">
+    <div class="card-painel">
+      <h3>Fotos do Carrossel</h3>
+      <p style="font-size:13px;color:#6b4a3f;margin-bottom:16px">Adicione fotos do seu trabalho. Elas aparecem no carrossel da p&#225;gina inicial. O site carrega as fotos salvas aqui automaticamente.</p>
+      <div id="lista-fotos"></div>
+      <div style="margin-top:16px">
+        <label style="display:flex;align-items:center;justify-content:center;gap:10px;padding:14px;background:rgba(255,255,255,.4);border-radius:18px;cursor:pointer;font-size:14px;color:#6b4a3f;font-weight:500;border:2px dashed rgba(107,74,63,.3);transition:.2s" onmouseover="this.style.background='rgba(255,255,255,.6)'" onmouseout="this.style.background='rgba(255,255,255,.4)'">
+          &#128247; Clique para adicionar fotos
+          <input type="file" id="input-fotos" accept="image/*" multiple style="display:none" onchange="adicionarFotos(this)">
+        </label>
+      </div>
+      <p style="font-size:12px;color:#6b4a3f;opacity:.7;margin-top:10px">As fotos ficam salvas no navegador. Para aparecer no site em outro dispositivo, use URLs de imagens externas (Instagram, Google Drive, etc).</p>
+      <button class="btn-salvar" style="margin-top:14px" onclick="salvarFotos()">&#128190; Salvar fotos do carrossel</button>
+    </div>
+    <div class="card-painel">
+      <h3>Adicionar por Link</h3>
+      <p style="font-size:13px;color:#6b4a3f;margin-bottom:12px">Cole o link de uma imagem da internet (Instagram, Google Drive p&#250;blico, etc). Funciona em qualquer dispositivo.</p>
+      <div class="campo-admin">
+        <label>URL da imagem</label>
+        <input type="url" id="input-url-foto" placeholder="https://...">
+      </div>
+      <button class="btn-salvar" onclick="adicionarFotoURL()">&#10133; Adicionar foto por link</button>
+    </div>
+  </div>
+
+  <div style="text-align:center;margin-top:8px">
+    <button class="btn-secundario" onclick="sair()">🚪 Sair do painel</button>
+  </div>
+
+  <div class="rodape-painel">© 2026 Patricia Lima — Desenvolvido por Nadiele Iara</div>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
 
 <script>
+// ═══════════════════════════════════════════════
+//  PADRÕES
+// ═══════════════════════════════════════════════
+const DEFAULTS = {
+  usuario:"patricia", senha:"pl2026",
+  nome:"Patricia Lima", frase:"Realçando sua beleza natural",
+  whatsapp:"5582996692302", instagram:"patricialima1302",
+  msgConfirmacao:"Olá {nome}! Seu agendamento foi CONFIRMADO.\n\nServiço: {servico}\nData: {data}\nHora: {hora}\n\nPatricia Lima 💅",
+  msgCancelamento:"Olá {nome}. Infelizmente seu agendamento foi CANCELADO.\n\nServiço: {servico}\nData: {data}\nHora: {hora}\n\nEntre em contato para reagendar.",
+  servicos:[
+    {nome:"Design de sobrancelha",preco:40},
+    {nome:"Design de sobrancelha com Henna",preco:40},
+    {nome:"Design de unhas",preco:150},
+    {nome:"Penteados",preco:120},
+    {nome:"Maquiagem",preco:35}
+  ],
+  horariosAtivos:["09:00","10:00","11:00","13:00","14:00","15:00"],
+  datasBloqueadas:[]
+};
 
-let lista=document.getElementById("lista")
+const TODOS_HORARIOS=["07:00","08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00"];
 
-let agendamentos=JSON.parse(localStorage.getItem("agendamentos"))||[]
+function getCfg(k){const r=localStorage.getItem("cfg_"+k);return r!==null?JSON.parse(r):DEFAULTS[k]}
+function setCfg(k,v){localStorage.setItem("cfg_"+k,JSON.stringify(v))}
 
-function carregar(){
+// ═══════════════════════════════════════════════
+//  LOGIN
+// ═══════════════════════════════════════════════
+function fazerLogin(){
+  const u=document.getElementById("login-usuario").value.trim();
+  const s=document.getElementById("login-senha").value;
+  if(u===getCfg("usuario")&&s===getCfg("senha")){
+    document.getElementById("tela-login").style.display="none";
+    document.getElementById("tela-painel").style.display="block";
+    iniciar();
+  }else{
+    document.getElementById("login-erro").style.display="block";
+  }
+}
+document.addEventListener("keydown",e=>{if(e.key==="Enter"&&document.getElementById("tela-login").style.display!=="none")fazerLogin()});
+function sair(){document.getElementById("tela-login").style.display="block";document.getElementById("tela-painel").style.display="none"}
 
-lista.innerHTML=""
-
-if(agendamentos.length===0){
-
-lista.innerHTML="Nenhum agendamento"
-
-return
-
+// ═══════════════════════════════════════════════
+//  ABAS
+// ═══════════════════════════════════════════════
+function mudarAba(id,btn){
+  document.querySelectorAll(".secao").forEach(s=>s.classList.remove("ativa"));
+  document.querySelectorAll(".aba").forEach(a=>a.classList.remove("ativa"));
+  document.getElementById("sec-"+id).classList.add("ativa");
+  btn.classList.add("ativa");
 }
 
-agendamentos.forEach((a,index)=>{
-
-let card=document.createElement("div")
-
-card.className="card-agenda"
-
-card.innerHTML=`
-
-<h3>${a.nome}</h3>
-
-<p>Serviço: ${a.servico}</p>
-
-<p>Data: ${a.data}</p>
-
-<p>Hora: ${a.hora}</p>
-
-<button class="confirmar" onclick="confirmar(${index})">
-Confirmar
-</button>
-
-<button class="cancelar" onclick="cancelar(${index})">
-Cancelar
-</button>
-
-`
-
-lista.appendChild(card)
-
-})
-
+// ═══════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════
+function toast(msg,err){
+  const t=document.getElementById("toast");
+  t.textContent=msg;
+  t.style.background=err?"#ff7b7b":"#6ecb8b";
+  t.style.color=err?"white":"#064420";
+  t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"),2800);
 }
+
+// ═══════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════
+function iniciar(){
+  renderStats();renderAgendamentos();
+  carregarCfg();renderServicos();
+  renderGrade();renderDatasBloqueadas();
+  renderFotos();
+}
+
+// ═══════════════════════════════════════════════
+//  AGENDAMENTOS
+// ═══════════════════════════════════════════════
+function getAgs(){return JSON.parse(localStorage.getItem("agendamentos")||"[]")}
+function saveAgs(arr){localStorage.setItem("agendamentos",JSON.stringify(arr))}
+
+function fmtData(d){return d?d.split("-").reverse().join("/"):"—"}
+
+function renderStats(){
+  const lista=getAgs();
+  const hoje=new Date().toISOString().split("T")[0];
+  document.getElementById("stats").innerHTML=`
+    <div class="stat-box"><div class="num">${lista.length}</div><div class="leg">Total</div></div>
+    <div class="stat-box"><div class="num">${lista.filter(a=>a.data===hoje).length}</div><div class="leg">Hoje</div></div>
+    <div class="stat-box"><div class="num">${lista.filter(a=>a.status==="confirmado").length}</div><div class="leg">Confirmados</div></div>
+    <div class="stat-box"><div class="num">${lista.filter(a=>!a.status||a.status==="pendente").length}</div><div class="leg">Pendentes</div></div>`;
+}
+
+function limparFiltros(){
+  document.getElementById("filtro-data").value="";
+  document.getElementById("filtro-status").value="";
+  renderAgendamentos();
+}
+
+function renderAgendamentos(){
+  const fd=document.getElementById("filtro-data").value;
+  const fs=document.getElementById("filtro-status").value;
+  const todos=getAgs();
+  let lista=todos.filter(a=>{
+    if(fd&&a.data!==fd)return false;
+    if(fs&&(a.status||"pendente")!==fs)return false;
+    return true;
+  }).sort((a,b)=>(a.data+a.hora).localeCompare(b.data+b.hora));
+
+  const grid=document.getElementById("lista-agendamentos");
+  if(!lista.length){grid.innerHTML='<div class="empty-state">Nenhum agendamento encontrado.</div>';return}
+
+  grid.innerHTML=lista.map(a=>{
+    const idx=todos.findIndex(x=>x.data===a.data&&x.hora===a.hora&&x.nome===a.nome&&x.telefone===a.telefone);
+    const st=a.status||"pendente";
+    return`<div class="card-agenda status-${st}">
+      <div class="cliente-nome">${a.nome}</div>
+      <div class="info-linha">💅 ${a.servico}</div>
+      <div class="info-linha">📅 ${fmtData(a.data)} às ${a.hora}</div>
+      <div class="info-linha">📱 ${a.telefone||"—"}</div>
+      <span class="status-badge badge-${st}">${st.charAt(0).toUpperCase()+st.slice(1)}</span>
+      <div class="acoes-card">
+        <button class="btn-confirmar"     onclick="confirmar(${idx})">✅ Confirmar</button>
+        <button class="btn-cancelar-card" onclick="cancelar(${idx})">❌ Cancelar</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
 function confirmar(i){
-
-let a=agendamentos[i]
-
-let msg=`Olá ${a.nome}! Seu agendamento foi CONFIRMADO.
-
-Serviço: ${a.servico}
-Data: ${a.data}
-Hora: ${a.hora}
-
-Patricia Lima 💅`
-
-let url=`https://wa.me/55${a.telefone}?text=${encodeURIComponent(msg)}`
-
-window.open(url,"_blank")
-
+  const lista=getAgs(); const a=lista[i]; if(!a)return;
+  lista[i].status="confirmado"; saveAgs(lista);
+  renderAgendamentos(); renderStats();
+  const msg=(getCfg("msgConfirmacao")||DEFAULTS.msgConfirmacao)
+    .replace("{nome}",a.nome).replace("{servico}",a.servico)
+    .replace("{data}",fmtData(a.data)).replace("{hora}",a.hora);
+  const tel=(a.telefone||"").replace(/\D/g,"");
+  if(tel) window.open(`https://wa.me/55${tel}?text=${encodeURIComponent(msg)}`,"_blank");
+  toast("Agendamento confirmado!");
 }
 
 function cancelar(i){
-
-let a=agendamentos[i]
-
-let msg=`Olá ${a.nome}. Infelizmente seu agendamento foi CANCELADO.
-
-Serviço: ${a.servico}
-Data: ${a.data}
-Hora: ${a.hora}
-
-Entre em contato para reagendar.`
-
-let url=`https://wa.me/55${a.telefone}?text=${encodeURIComponent(msg)}`
-
-window.open(url,"_blank")
-
-agendamentos.splice(i,1)
-
-localStorage.setItem("agendamentos",JSON.stringify(agendamentos))
-
-carregar()
-
+  const lista=getAgs(); const a=lista[i]; if(!a)return;
+  const msg=(getCfg("msgCancelamento")||DEFAULTS.msgCancelamento)
+    .replace("{nome}",a.nome).replace("{servico}",a.servico)
+    .replace("{data}",fmtData(a.data)).replace("{hora}",a.hora);
+  const tel=(a.telefone||"").replace(/\D/g,"");
+  if(tel) window.open(`https://wa.me/55${tel}?text=${encodeURIComponent(msg)}`,"_blank");
+  lista.splice(i,1); saveAgs(lista);
+  renderAgendamentos(); renderStats();
+  toast("Agendamento cancelado.",true);
 }
 
-carregar()
+// ═══════════════════════════════════════════════
+//  CONFIGURAÇÕES
+// ═══════════════════════════════════════════════
+function carregarCfg(){
+  document.getElementById("cfg-nome").value            =getCfg("nome");
+  document.getElementById("cfg-frase").value           =getCfg("frase");
+  document.getElementById("cfg-whatsapp").value        =getCfg("whatsapp");
+  document.getElementById("cfg-instagram").value       =getCfg("instagram");
+  document.getElementById("cfg-msg-confirmacao").value =getCfg("msgConfirmacao");
+  document.getElementById("cfg-msg-cancelamento").value=getCfg("msgCancelamento");
+  document.getElementById("cfg-pix-chave").value       =getCfg("pixChave")||"";
+  document.getElementById("cfg-pix-nome").value        =getCfg("pixNome")||"";
+  document.getElementById("cfg-pix-entrada").value     =getCfg("pixEntrada")||"opcao";
+}
 
+function salvarConfiguracoes(){
+  setCfg("nome",   document.getElementById("cfg-nome").value.trim());
+  setCfg("frase",  document.getElementById("cfg-frase").value.trim());
+  setCfg("whatsapp",document.getElementById("cfg-whatsapp").value.trim());
+  setCfg("instagram",document.getElementById("cfg-instagram").value.trim());
+  setCfg("msgConfirmacao",  document.getElementById("cfg-msg-confirmacao").value);
+  setCfg("msgCancelamento", document.getElementById("cfg-msg-cancelamento").value);
+  setCfg("pixChave",  document.getElementById("cfg-pix-chave").value.trim());
+  setCfg("pixNome",   document.getElementById("cfg-pix-nome").value.trim());
+  setCfg("pixEntrada",document.getElementById("cfg-pix-entrada").value);
+  const ns=document.getElementById("cfg-senha").value;
+  if(ns){setCfg("senha",ns);document.getElementById("cfg-senha").value=""}
+  toast("Configurações salvas!");
+}
+
+// ═══════════════════════════════════════════════
+//  SERVIÇOS
+// ═══════════════════════════════════════════════
+function renderServicos(){
+  const sv=getCfg("servicos");
+  document.getElementById("lista-servicos").innerHTML=sv.map((s,i)=>`
+    <div class="servico-item">
+      <input type="text"   value="${s.nome}"  placeholder="Nome do serviço"   id="sv-nome-${i}">
+      <input type="number" value="${s.preco}" placeholder="Preço (R$)" min="0" id="sv-preco-${i}">
+      <button class="btn-remover" onclick="removerServico(${i})" title="Remover">×</button>
+    </div>`).join("");
+}
+
+function adicionarServico(){
+  const sv=getCfg("servicos");
+  sv.push({nome:"",preco:0}); setCfg("servicos",sv); renderServicos();
+}
+
+function removerServico(i){
+  const sv=getCfg("servicos"); sv.splice(i,1); setCfg("servicos",sv); renderServicos(); toast("Serviço removido.");
+}
+
+function salvarServicos(){
+  const sv=getCfg("servicos");
+  const novos=sv.map((_,i)=>({
+    nome: document.getElementById(`sv-nome-${i}`).value.trim(),
+    preco:parseFloat(document.getElementById(`sv-preco-${i}`).value)||0
+  }));
+  setCfg("servicos",novos); toast("Serviços salvos!");
+}
+
+// ═══════════════════════════════════════════════
+//  HORÁRIOS
+// ═══════════════════════════════════════════════
+function renderGrade(){
+  const ativos=getCfg("horariosAtivos");
+  document.getElementById("grade-horarios").innerHTML=TODOS_HORARIOS.map(h=>`
+    <div class="horario-toggle">
+      <input type="checkbox" id="h-${h}" value="${h}" ${ativos.includes(h)?"checked":""}>
+      <label for="h-${h}">${h}</label>
+    </div>`).join("");
+}
+
+function salvarHorarios(){
+  const ativos=[...document.querySelectorAll("#grade-horarios input:checked")].map(i=>i.value);
+  setCfg("horariosAtivos",ativos); toast("Horários salvos!");
+}
+
+function bloquearData(){
+  const d=document.getElementById("data-bloqueio").value;
+  if(!d){toast("Selecione uma data.",true);return}
+  const bl=getCfg("datasBloqueadas");
+  if(bl.includes(d)){toast("Data já bloqueada.");return}
+  bl.push(d); setCfg("datasBloqueadas",bl);
+  document.getElementById("data-bloqueio").value="";
+  renderDatasBloqueadas(); toast("Data bloqueada!");
+}
+
+function desbloquearData(d){
+  setCfg("datasBloqueadas",getCfg("datasBloqueadas").filter(x=>x!==d));
+  renderDatasBloqueadas(); toast("Data desbloqueada.");
+}
+
+function renderDatasBloqueadas(){
+  const bl=getCfg("datasBloqueadas");
+  const el=document.getElementById("datas-bloqueadas");
+  if(!bl.length){el.innerHTML='<p style="font-size:13px;color:#6b4a3f;opacity:.7">Nenhuma data bloqueada.</p>';return}
+  el.innerHTML=bl.map(d=>`
+    <div class="servico-item" style="justify-content:space-between">
+      <span style="font-size:14px;color:#3f2922">📅 ${fmtData(d)}</span>
+      <button class="btn-remover" onclick="desbloquearData('${d}')" title="Desbloquear">×</button>
+    </div>`).join("");
+}
+
+// ═══════════════════════════════════════════════
+//  FOTOS DO CARROSSEL
+// ═══════════════════════════════════════════════
+function getFotos(){return JSON.parse(localStorage.getItem("carrossel_fotos")||"[]")}
+function setFotos(arr){localStorage.setItem("carrossel_fotos",JSON.stringify(arr))}
+
+function renderFotos(){
+  const fotos=getFotos();
+  const lista=document.getElementById("lista-fotos");
+  if(!fotos.length){
+    lista.innerHTML='<p style="font-size:13px;color:#6b4a3f;opacity:.7;margin-bottom:12px">Nenhuma foto adicionada ainda. Use os campos abaixo para adicionar.</p>';
+    return;
+  }
+  lista.innerHTML=`<div class="foto-grid">${fotos.map((f,i)=>`
+    <div class="foto-card">
+      <img src="${f.src}" alt="Foto ${i+1}" onerror="this.src='https://via.placeholder.com/200x200/cfa896/6b4a3f?text=Erro'">
+      <span class="foto-ordem">${i+1}</span>
+      <button class="btn-del-foto" onclick="removerFoto(${i})" title="Remover">×</button>
+    </div>`).join("")}</div>`;
+}
+
+function adicionarFotos(input){
+  const fotos=getFotos();
+  const files=[...input.files];
+  let count=0;
+  files.forEach(file=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      fotos.push({src:e.target.result,tipo:"base64"});
+      count++;
+      if(count===files.length){setFotos(fotos);renderFotos();toast(`${files.length} foto(s) adicionada(s)!`);}
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value="";
+}
+
+function adicionarFotoURL(){
+  const url=document.getElementById("input-url-foto").value.trim();
+  if(!url){toast("Cole um link de imagem.",true);return;}
+  const fotos=getFotos();
+  fotos.push({src:url,tipo:"url"});
+  setFotos(fotos);
+  document.getElementById("input-url-foto").value="";
+  renderFotos();
+  toast("Foto adicionada por link!");
+}
+
+function removerFoto(i){
+  const fotos=getFotos();
+  fotos.splice(i,1);
+  setFotos(fotos);
+  renderFotos();
+  toast("Foto removida.");
+}
+
+function salvarFotos(){
+  toast("Fotos do carrossel salvas! Recarregue a página inicial para ver.");
+}
 </script>
-
 </body>
 </html>
