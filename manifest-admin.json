@@ -1,0 +1,22 @@
+{
+  "name": "Painel Patricia Lima",
+  "short_name": "Painel PL",
+  "description": "Painel administrativo — Patricia Lima",
+  "start_url": "./painel-patricia-89421.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#3f2922",
+  "theme_color": "#6b4a3f",
+  "orientation": "portrait-primary",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "./icons-admin/icon-72.png",  "sizes": "72x72",   "type": "image/png" },
+    { "src": "./icons-admin/icon-96.png",  "sizes": "96x96",   "type": "image/png" },
+    { "src": "./icons-admin/icon-128.png", "sizes": "128x128", "type": "image/png" },
+    { "src": "./icons-admin/icon-144.png", "sizes": "144x144", "type": "image/png" },
+    { "src": "./icons-admin/icon-152.png", "sizes": "152x152", "type": "image/png" },
+    { "src": "./icons-admin/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "./icons-admin/icon-384.png", "sizes": "384x384", "type": "image/png" },
+    { "src": "./icons-admin/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

@@ -5,14 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Painel Admin — Patricia Lima</title>
 
-<!-- PWA -->
-<link rel="manifest" href="./manifest.json">
-<meta name="theme-color" content="#e38f7a">
+<!-- PWA exclusivo do painel -->
+<link rel="manifest" href="./manifest-admin.json">
+<meta name="theme-color" content="#6b4a3f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Painel PL">
-<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<link rel="apple-touch-icon" href="./icons-admin/icon-192.png">
+<link rel="apple-touch-icon" sizes="152x152" href="./icons-admin/icon-152.png">
+<link rel="apple-touch-icon" sizes="192x192" href="./icons-admin/icon-192.png">
+<link rel="apple-touch-icon" sizes="512x512" href="./icons-admin/icon-512.png">
 
 <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -95,54 +98,26 @@
 .login-erro{color:#7a0000;font-size:13px;margin-bottom:8px;display:none}
 @media(max-width:600px){.aba{font-size:12px;padding:10px 10px}}
 
-/* ─── BANNER INSTALAR APP ─── */
-#banner-instalar-painel {
-  display: none;
-  position: fixed;
-  bottom: 20px; left: 50%;
-  transform: translateX(-50%);
-  width: calc(100% - 32px); max-width: 420px;
-  background: linear-gradient(135deg, #e38f7a, #c97060);
-  color: white; border-radius: 20px;
-  padding: 14px 18px;
-  box-shadow: 0 8px 32px rgba(227,143,122,0.55);
-  z-index: 9999; align-items: center; gap: 12px;
-  animation: bSlideUp 0.4s cubic-bezier(.34,1.56,.64,1);
-  font-family: Poppins, sans-serif;
+/* ── BANNERS PWA ── */
+.pwa-banner{
+  display:none;position:fixed;bottom:20px;left:50%;
+  transform:translateX(-50%);
+  width:calc(100% - 32px);max-width:420px;
+  border-radius:20px;padding:14px 18px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.35);
+  z-index:9999;align-items:center;gap:12px;
+  font-family:Poppins,sans-serif;
+  animation:bUp .4s cubic-bezier(.34,1.56,.64,1);
 }
-#banner-ios-painel {
-  display: none;
-  position: fixed;
-  bottom: 20px; left: 50%;
-  transform: translateX(-50%);
-  width: calc(100% - 32px); max-width: 420px;
-  background: linear-gradient(135deg, #6b4a3f, #3f2922);
-  color: white; border-radius: 20px;
-  padding: 14px 18px;
-  box-shadow: 0 8px 32px rgba(63,41,34,0.55);
-  z-index: 9999; align-items: center; gap: 12px;
-  animation: bSlideUp 0.4s cubic-bezier(.34,1.56,.64,1);
-  font-family: Poppins, sans-serif;
-}
-@keyframes bSlideUp {
-  from { transform: translateX(-50%) translateY(100px); opacity: 0; }
-  to   { transform: translateX(-50%) translateY(0);     opacity: 1; }
-}
-.b-icone { font-size: 28px; flex-shrink: 0; }
-.b-texto { flex: 1; }
-.b-titulo { font-weight: 600; font-size: 14px; margin-bottom: 2px; }
-.b-desc   { font-size: 11px; opacity: 0.9; line-height: 1.4; }
-.b-btn {
-  background: white; color: #c97060; border: none;
-  padding: 9px 16px; border-radius: 30px;
-  font-family: Poppins, sans-serif; font-weight: 600; font-size: 13px;
-  cursor: pointer; white-space: nowrap; flex-shrink: 0;
-}
-.b-fechar {
-  background: none; border: none; color: white;
-  font-size: 18px; cursor: pointer; padding: 0;
-  flex-shrink: 0; opacity: 0.8;
-}
+@keyframes bUp{from{transform:translateX(-50%) translateY(100px);opacity:0}to{transform:translateX(-50%) translateY(0);opacity:1}}
+.pwa-banner.android{background:linear-gradient(135deg,#e38f7a,#c97060)}
+.pwa-banner.ios{background:linear-gradient(135deg,#6b4a3f,#3f2922)}
+.pwa-banner .b-icon{font-size:28px;flex-shrink:0}
+.pwa-banner .b-text{flex:1;color:white}
+.pwa-banner .b-title{font-weight:600;font-size:14px;margin-bottom:2px}
+.pwa-banner .b-desc{font-size:11px;opacity:.9;line-height:1.4}
+.pwa-banner .b-btn{background:white;color:#c97060;border:none;padding:9px 16px;border-radius:30px;font-family:Poppins,sans-serif;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.pwa-banner .b-close{background:none;border:none;color:white;font-size:18px;cursor:pointer;padding:0;flex-shrink:0;opacity:.8}
 /* ─── CARDS PAGAMENTO ─── */
 .pag-card{background:rgba(255,255,255,.28);backdrop-filter:blur(12px);border-radius:20px;padding:16px 18px;box-shadow:0 6px 18px rgba(0,0,0,.12);margin-bottom:12px;display:flex;align-items:center;gap:14px;border-left:4px solid #f0c060}
 .pag-card.status-pago{border-left-color:#6ecb8b}
@@ -1261,81 +1236,70 @@ mudarAba = function(id, btn) {
 </script>
 
 <!-- BANNER ANDROID -->
-<div id="banner-instalar-painel">
-  <div class="b-icone">📲</div>
-  <div class="b-texto">
-    <div class="b-titulo">Instalar Painel como App</div>
-    <div class="b-desc">Acesse o painel admin direto da tela inicial do celular!</div>
+<div id="pwa-android" class="pwa-banner android">
+  <div class="b-icon">📲</div>
+  <div class="b-text">
+    <div class="b-title">Instalar Painel como App</div>
+    <div class="b-desc">Acesse o painel direto da tela inicial!</div>
   </div>
-  <button class="b-btn" onclick="instalarPainel()">Instalar</button>
-  <button class="b-fechar" onclick="fecharBannerPainel('instalar')">✕</button>
+  <button class="b-btn" onclick="pwaInstalar()">Instalar</button>
+  <button class="b-close" onclick="pwaFechar('android')">✕</button>
 </div>
 
 <!-- BANNER iOS -->
-<div id="banner-ios-painel">
-  <div class="b-icone">🍎</div>
-  <div class="b-texto">
-    <div class="b-titulo">Instalar no iPhone</div>
+<div id="pwa-ios" class="pwa-banner ios">
+  <div class="b-icon">🍎</div>
+  <div class="b-text">
+    <div class="b-title">Instalar no iPhone</div>
     <div class="b-desc">Toque em <strong>⬆️ Compartilhar</strong> → <strong>"Adicionar à Tela de Início"</strong></div>
   </div>
-  <button class="b-fechar" onclick="fecharBannerPainel('ios')">✕</button>
+  <button class="b-close" onclick="pwaFechar('ios')">✕</button>
 </div>
 
 <script>
-// ── PWA: Registra Service Worker ─────────────
+// ── Service Worker ────────────────────────────
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js", { scope: "./" })
-      .then(r  => console.log("✅ SW Painel:", r.scope))
-      .catch(e => console.warn("SW falhou:", e));
-  });
+  navigator.serviceWorker.register("./sw.js", { scope: "./" })
+    .then(r  => console.log("✅ SW Painel:", r.scope))
+    .catch(e => console.warn("SW:", e));
 }
 
-// ── Detecta plataforma ───────────────────────
-const _isIOS       = /iphone|ipad|ipod/i.test(navigator.userAgent);
-const _isStandalone = window.navigator.standalone === true
-                   || window.matchMedia("(display-mode: standalone)").matches;
+// ── Plataforma ────────────────────────────────
+const _pwaisIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const _pwaStandalone = window.navigator.standalone === true
+                    || window.matchMedia("(display-mode: standalone)").matches;
 
-// ── Android / Chrome ─────────────────────────
-let _deferredPrompt = null;
-
+// ── Android ───────────────────────────────────
+let _pwaDeferredPrompt = null;
 window.addEventListener("beforeinstallprompt", e => {
   e.preventDefault();
-  _deferredPrompt = e;
-  if (!_isStandalone && !sessionStorage.getItem("painel_banner_fechado")) {
-    document.getElementById("banner-instalar-painel").style.display = "flex";
+  _pwaDeferredPrompt = e;
+  if (!_pwaStandalone && !sessionStorage.getItem("pwa_adm_android")) {
+    document.getElementById("pwa-android").style.display = "flex";
   }
 });
-
-function instalarPainel() {
-  if (!_deferredPrompt) return;
-  _deferredPrompt.prompt();
-  _deferredPrompt.userChoice.then(() => {
-    _deferredPrompt = null;
-    fecharBannerPainel("instalar");
+function pwaInstalar() {
+  if (!_pwaDeferredPrompt) return;
+  _pwaDeferredPrompt.prompt();
+  _pwaDeferredPrompt.userChoice.then(() => {
+    _pwaDeferredPrompt = null;
+    pwaFechar("android");
   });
 }
-
 window.addEventListener("appinstalled", () => {
-  fecharBannerPainel("instalar");
-  _deferredPrompt = null;
+  pwaFechar("android");
 });
 
-// ── iOS ──────────────────────────────────────
-if (_isIOS && !_isStandalone && !sessionStorage.getItem("painel_ios_fechado")) {
+// ── iOS ───────────────────────────────────────
+if (_pwaisIOS && !_pwaStandalone && !sessionStorage.getItem("pwa_adm_ios")) {
   setTimeout(() => {
-    document.getElementById("banner-ios-painel").style.display = "flex";
+    document.getElementById("pwa-ios").style.display = "flex";
   }, 2500);
 }
 
-function fecharBannerPainel(tipo) {
-  if (tipo === "instalar") {
-    document.getElementById("banner-instalar-painel").style.display = "none";
-    sessionStorage.setItem("painel_banner_fechado", "1");
-  } else {
-    document.getElementById("banner-ios-painel").style.display = "none";
-    sessionStorage.setItem("painel_ios_fechado", "1");
-  }
+function pwaFechar(tipo) {
+  document.getElementById("pwa-" + tipo).style.display = "none";
+  sessionStorage.setItem("pwa_adm_" + tipo, "1");
 }
 </script>
 
