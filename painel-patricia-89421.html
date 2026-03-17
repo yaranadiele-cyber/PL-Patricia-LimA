@@ -270,25 +270,24 @@
   <div id="sec-fotos" class="secao">
     <div class="card-painel">
       <h3>Fotos do Carrossel</h3>
-      <p style="font-size:13px;color:#6b4a3f;margin-bottom:16px">Adicione fotos do seu trabalho. Elas aparecem no carrossel da p&#225;gina inicial. O site carrega as fotos salvas aqui automaticamente.</p>
+      <p style="font-size:13px;color:#6b4a3f;margin-bottom:16px">As fotos são salvas no banco e aparecem <strong>em todos os dispositivos</strong> automaticamente.</p>
       <div id="lista-fotos"></div>
       <div style="margin-top:16px">
         <label style="display:flex;align-items:center;justify-content:center;gap:10px;padding:14px;background:rgba(255,255,255,.4);border-radius:18px;cursor:pointer;font-size:14px;color:#6b4a3f;font-weight:500;border:2px dashed rgba(107,74,63,.3);transition:.2s" onmouseover="this.style.background='rgba(255,255,255,.6)'" onmouseout="this.style.background='rgba(255,255,255,.4)'">
-          &#128247; Clique para adicionar fotos
+          📷 Upload de foto (salva direto no banco)
           <input type="file" id="input-fotos" accept="image/*" multiple style="display:none" onchange="adicionarFotos(this)">
         </label>
       </div>
-      <p style="font-size:12px;color:#6b4a3f;opacity:.7;margin-top:10px">As fotos ficam salvas no navegador. Para aparecer no site em outro dispositivo, use URLs de imagens externas (Instagram, Google Drive, etc).</p>
-      <button class="btn-salvar" style="margin-top:14px" onclick="salvarFotos()">&#128190; Salvar fotos do carrossel</button>
+      <button class="btn-salvar" style="margin-top:14px" onclick="salvarFotos()">💾 Confirmar fotos no banco</button>
     </div>
     <div class="card-painel">
-      <h3>Adicionar por Link</h3>
-      <p style="font-size:13px;color:#6b4a3f;margin-bottom:12px">Cole o link de uma imagem da internet (Instagram, Google Drive p&#250;blico, etc). Funciona em qualquer dispositivo.</p>
+      <h3>Adicionar por Link (recomendado)</h3>
+      <p style="font-size:13px;color:#6b4a3f;margin-bottom:12px">Cole o link de uma imagem do Google Drive público, Google Fotos, ou qualquer URL de imagem. É mais rápido e funciona melhor em todos os dispositivos.</p>
       <div class="campo-admin">
         <label>URL da imagem</label>
         <input type="url" id="input-url-foto" placeholder="https://...">
       </div>
-      <button class="btn-salvar" onclick="adicionarFotoURL()">&#10133; Adicionar foto por link</button>
+      <button class="btn-salvar" onclick="adicionarFotoURL()">➕ Adicionar e salvar no banco</button>
     </div>
   </div>
 
@@ -680,63 +679,97 @@ function renderDatasBloqueadas(){
 }
 
 // ═══════════════════════════════════════════════
-//  FOTOS DO CARROSSEL
+//  FOTOS DO CARROSSEL — salvas no Supabase
 // ═══════════════════════════════════════════════
-function getFotos(){return JSON.parse(localStorage.getItem("carrossel_fotos")||"[]")}
-function setFotos(arr){localStorage.setItem("carrossel_fotos",JSON.stringify(arr))}
+// fotos ficam em cfg "carrosselFotos" = [{src, tipo}]
+// NÃO usa mais localStorage — tudo vai pro banco
 
-function renderFotos(){
-  const fotos=getFotos();
-  const lista=document.getElementById("lista-fotos");
-  if(!fotos.length){
-    lista.innerHTML='<p style="font-size:13px;color:#6b4a3f;opacity:.7;margin-bottom:12px">Nenhuma foto adicionada ainda. Use os campos abaixo para adicionar.</p>';
+let _fotosCache = null; // cache local durante a sessão
+
+async function getFotos() {
+  if (_fotosCache !== null) return _fotosCache;
+  const fotos = await dbGetConfig("carrosselFotos", []);
+  _fotosCache = Array.isArray(fotos) ? fotos : [];
+  return _fotosCache;
+}
+
+async function setFotosDB(arr) {
+  _fotosCache = arr;
+  await dbSetConfig("carrosselFotos", arr);
+  // mantém cópia local como fallback offline
+  localStorage.setItem("carrossel_fotos", JSON.stringify(arr));
+}
+
+async function renderFotos() {
+  const lista = document.getElementById("lista-fotos");
+  lista.innerHTML = '<p style="font-size:13px;color:#6b4a3f;opacity:.7">Carregando fotos...</p>';
+  const fotos = await getFotos();
+  if (!fotos.length) {
+    lista.innerHTML = '<p style="font-size:13px;color:#6b4a3f;opacity:.7;margin-bottom:12px">Nenhuma foto adicionada. Adicione por link (recomendado) ou por upload abaixo.</p>';
     return;
   }
-  lista.innerHTML=`<div class="foto-grid">${fotos.map((f,i)=>`
+  lista.innerHTML = `<div class="foto-grid">${fotos.map((f, i) => `
     <div class="foto-card">
       <img src="${f.src}" alt="Foto ${i+1}" onerror="this.src='https://via.placeholder.com/200x200/cfa896/6b4a3f?text=Erro'">
       <span class="foto-ordem">${i+1}</span>
       <button class="btn-del-foto" onclick="removerFoto(${i})" title="Remover">×</button>
-    </div>`).join("")}</div>`;
+    </div>`).join("")}</div>
+  <p style="font-size:11px;color:#6b4a3f;opacity:.6;margin-top:8px">💡 Fotos por link funcionam em qualquer dispositivo. Uploads (base64) podem ficar pesados.</p>`;
 }
 
-function adicionarFotos(input){
-  const fotos=getFotos();
-  const files=[...input.files];
-  let count=0;
-  files.forEach(file=>{
-    const reader=new FileReader();
-    reader.onload=e=>{
-      fotos.push({src:e.target.result,tipo:"base64"});
-      count++;
-      if(count===files.length){setFotos(fotos);renderFotos();toast(`${files.length} foto(s) adicionada(s)!`);}
-    };
-    reader.readAsDataURL(file);
+function adicionarFotos(input) {
+  const files = [...input.files];
+  if (!files.length) return;
+
+  // avisa se arquivo for grande
+  const grandes = files.filter(f => f.size > 500 * 1024);
+  if (grandes.length) {
+    toast(`⚠️ ${grandes.length} foto(s) são grandes (+500KB). Prefira usar links de URL para não sobrecarregar o banco.`, true);
+  }
+
+  let count = 0;
+  getFotos().then(fotos => {
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = async e => {
+        fotos.push({ src: e.target.result, tipo: "base64" });
+        count++;
+        if (count === files.length) {
+          await setFotosDB(fotos);
+          renderFotos();
+          toast(`${files.length} foto(s) salva(s) no banco! ✅`);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
   });
-  input.value="";
+  input.value = "";
 }
 
-function adicionarFotoURL(){
-  const url=document.getElementById("input-url-foto").value.trim();
-  if(!url){toast("Cole um link de imagem.",true);return;}
-  const fotos=getFotos();
-  fotos.push({src:url,tipo:"url"});
-  setFotos(fotos);
-  document.getElementById("input-url-foto").value="";
+async function adicionarFotoURL() {
+  const url = document.getElementById("input-url-foto").value.trim();
+  if (!url) { toast("Cole um link de imagem.", true); return; }
+  const fotos = await getFotos();
+  fotos.push({ src: url, tipo: "url" });
+  await setFotosDB(fotos);
+  document.getElementById("input-url-foto").value = "";
   renderFotos();
-  toast("Foto adicionada por link!");
+  toast("Foto adicionada e salva no banco! ✅");
 }
 
-function removerFoto(i){
-  const fotos=getFotos();
-  fotos.splice(i,1);
-  setFotos(fotos);
+async function removerFoto(i) {
+  const fotos = await getFotos();
+  fotos.splice(i, 1);
+  await setFotosDB(fotos);
   renderFotos();
   toast("Foto removida.");
 }
 
-function salvarFotos(){
-  toast("Fotos do carrossel salvas! Recarregue a página inicial para ver.");
+async function salvarFotos() {
+  // garante que o cache está salvo no banco
+  const fotos = await getFotos();
+  await setFotosDB(fotos);
+  toast("Fotos salvas no banco! Aparecerão em todos os dispositivos. ✅");
 }
 
 // ═══════════════════════════════════════════════
@@ -785,8 +818,8 @@ async function setCfgDB(key, value) {
 const _iniciarOriginal = iniciar;
 iniciar = async function() {
   mostrarCarregando(true);
+  _fotosCache = null; // força recarregar fotos do banco
   try {
-    // carrega configs do banco para localStorage (cache)
     const configs = await dbGetAllConfigs();
     Object.entries(configs).forEach(([k,v]) => {
       localStorage.setItem("cfg_" + k, JSON.stringify(v));
@@ -799,7 +832,7 @@ iniciar = async function() {
   renderServicos();
   renderGrade();
   renderDatasBloqueadas();
-  renderFotos();
+  await renderFotos();
   carregarQuemSou();
 };
 

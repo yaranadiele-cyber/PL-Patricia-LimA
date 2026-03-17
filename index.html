@@ -93,7 +93,28 @@ Localização
 
 </footer>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase.js"></script>
 <script src="script.js"></script>
+<script>
+// Carrega frase e instagram do Supabase
+(async function() {
+  try {
+    const frase = await dbGetConfig("frase", null);
+    if (frase) {
+      const el = document.querySelector(".frase");
+      if (el) el.textContent = frase;
+    }
+    const insta = await dbGetConfig("instagram", null);
+    if (insta) {
+      const link = document.querySelector('a[href*="instagram.com"]');
+      if (link) link.href = `https://instagram.com/${insta}`;
+      const rodape = document.querySelector('.rodape-box p');
+      if (rodape && rodape.textContent.includes('@')) rodape.textContent = `@${insta}`;
+    }
+  } catch(e) { console.warn("Config load:", e); }
+})();
+</script>
 
 </body>
 </html>

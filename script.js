@@ -1,44 +1,59 @@
-// ─── Carrossel ───────────────────────────────────────────────
-// Tenta carregar fotos salvas no painel admin.
-// Se não houver nenhuma, mantém as imagens originais do HTML.
+// ═══════════════════════════════════════════════
+//  CARROSSEL — carrega do Supabase
+//  Funciona igual em qualquer dispositivo
+// ═══════════════════════════════════════════════
 
-(function aplicarFotosDoAdmin() {
-  const fotos = JSON.parse(localStorage.getItem("carrossel_fotos") || "[]");
-  if (!fotos.length) return;
+let slides = [];
+let index  = 0;
+let autoInterval = null;
 
+async function iniciarCarrossel() {
   const galeria = document.querySelector(".galeria");
   if (!galeria) return;
 
-  galeria.innerHTML = fotos.map((f, i) =>
-    `<img src="${f.src}" class="slide${i === 0 ? " active" : ""}"
-          onerror="this.style.display='none'">`
-  ).join("");
-})();
+  let fotos = [];
+  try {
+    fotos = await dbGetConfig("carrosselFotos", []);
+  } catch (e) {
+    console.warn("Supabase indisponível, usando fallback local");
+  }
 
-// ─── Lógica do carrossel ─────────────────────────────────────
-const slides = document.querySelectorAll(".slide");
-let index = 0;
+  // fallback offline: localStorage
+  if (!fotos || !fotos.length) {
+    fotos = JSON.parse(localStorage.getItem("carrossel_fotos") || "[]");
+  }
+
+  if (fotos.length) {
+    galeria.innerHTML = fotos.map((f, i) =>
+      `<img src="${f.src}" class="slide${i === 0 ? " active" : ""}" onerror="this.style.display='none'">`
+    ).join("");
+  }
+  // sem fotos no banco = mantém imagens originais do HTML
+
+  slides = [...document.querySelectorAll(".slide")];
+  if (!slides.length) return;
+
+  index = 0;
+  atualizar();
+  if (autoInterval) clearInterval(autoInterval);
+  autoInterval = setInterval(proximo, 3000);
+}
 
 function atualizar() {
-  slides.forEach(slide => slide.classList.remove("active", "left", "right"));
-
+  slides.forEach(s => s.classList.remove("active", "left", "right"));
+  if (!slides[index]) return;
   slides[index].classList.add("active");
-
-  let esquerda = index - 1;
-  let direita  = index + 1;
-
-  if (esquerda < 0)             esquerda = slides.length - 1;
-  if (direita >= slides.length) direita  = 0;
-
-  slides[esquerda].classList.add("left");
-  slides[direita].classList.add("right");
+  const esq = (index - 1 + slides.length) % slides.length;
+  const dir  = (index + 1) % slides.length;
+  slides[esq].classList.add("left");
+  slides[dir].classList.add("right");
 }
 
 function proximo() {
-  index++;
-  if (index >= slides.length) index = 0;
+  index = (index + 1) % slides.length;
   atualizar();
 }
 
-setInterval(proximo, 3000);
-atualizar();
+document.addEventListener("DOMContentLoaded", () => {
+  iniciarCarrossel();
+});
