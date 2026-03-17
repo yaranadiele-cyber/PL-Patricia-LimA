@@ -7,279 +7,110 @@
 <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <style>
-/* ─── TIMER RESERVA ─── */
-#timer-reserva {
-  display: none;
-  background: rgba(240,192,96,0.2);
-  border-radius: 12px;
-  padding: 10px 14px;
-  font-size: 13px;
-  color: #7a5700;
-  margin-bottom: 10px;
-  text-align: center;
-  line-height: 1.5;
-}
 
-/* ─── CAMPO DATA DESTAQUE ─── */
-.data-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.data-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #6b4a3f;
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
-  padding-left: 4px;
-}
-.data-input-destaque {
-  padding: 14px 16px !important;
-  border: 2px solid #e38f7a !important;
-  border-radius: 14px !important;
-  font-size: 15px !important;
-  font-family: Poppins, sans-serif !important;
-  background: rgba(255,255,255,0.85) !important;
-  color: #3f2922 !important;
-  outline: none !important;
-  width: 100%;
-  box-shadow: 0 4px 14px rgba(227,143,122,0.25);
-  cursor: pointer;
-  transition: 0.2s;
-}
-.data-input-destaque:focus {
-  border-color: #c97060 !important;
-  background: white !important;
-  box-shadow: 0 4px 18px rgba(227,143,122,0.4);
-}
-/* ícone calendário no campo de data */
-.data-input-destaque::-webkit-calendar-picker-indicator {
-  font-size: 18px;
-  cursor: pointer;
-  opacity: 0.7;
-}
+/* ══ ETAPAS ══ */
+.etapas{display:flex;justify-content:center;align-items:center;gap:0;margin:24px 0 32px}
+.etapa-item{display:flex;flex-direction:column;align-items:center;gap:6px}
+.etapa-circulo{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.3);border:2px solid rgba(107,74,63,0.25);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#6b4a3f;transition:all 0.35s cubic-bezier(.34,1.56,.64,1)}
+.etapa-circulo.ativa{background:#e38f7a;border-color:#e38f7a;color:white;box-shadow:0 4px 16px rgba(227,143,122,0.5);transform:scale(1.1)}
+.etapa-circulo.feita{background:#6ecb8b;border-color:#6ecb8b;color:white}
+.etapa-label{font-size:10px;color:#6b4a3f;opacity:0.65;white-space:nowrap;font-weight:500}
+.etapa-label.ativa{opacity:1;color:#e38f7a}
+.etapa-linha{width:48px;height:2px;background:rgba(107,74,63,0.15);margin-bottom:20px;border-radius:2px}
 
-.etapas {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 0;
-  margin: 20px 0 28px;
-}
-.etapa-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-.etapa-circulo {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.35);
-  border: 2px solid rgba(107,74,63,0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 600;
-  color: #6b4a3f;
-  transition: 0.3s;
-}
-.etapa-circulo.ativa {
-  background: #e38f7a;
-  border-color: #e38f7a;
-  color: white;
-  box-shadow: 0 4px 12px rgba(227,143,122,0.45);
-}
-.etapa-circulo.feita {
-  background: #6ecb8b;
-  border-color: #6ecb8b;
-  color: white;
-}
-.etapa-label {
-  font-size: 10px;
-  color: #6b4a3f;
-  opacity: 0.7;
-  white-space: nowrap;
-}
-.etapa-label.ativa { opacity: 1; font-weight: 500; }
-.etapa-linha {
-  width: 40px;
-  height: 2px;
-  background: rgba(107,74,63,0.2);
-  margin-bottom: 16px;
-}
+/* ══ TELAS ══ */
+.tela{display:none}
+.tela.ativa{display:block;animation:fadeUp 0.35s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 
-/* ─── TELAS ─── */
-.tela { display: none; }
-.tela.ativa { display: block; }
+/* ══ CARD ══ */
+.ag-card{background:rgba(255,255,255,0.22);backdrop-filter:blur(18px);border-radius:28px;padding:28px 22px 24px;box-shadow:0 12px 40px rgba(63,41,34,0.18);margin-top:8px;display:flex;flex-direction:column;gap:0}
+.ag-titulo{font-family:'Great Vibes',cursive;font-size:34px;color:#6b4a3f;text-align:center;margin-bottom:6px}
+.ag-subtitulo{font-size:12px;color:#6b4a3f;opacity:0.7;text-align:center;margin-bottom:22px;letter-spacing:0.3px}
+.ag-divisor{height:1px;background:rgba(107,74,63,0.1);margin:0 0 18px;border-radius:2px}
 
-/* ─── RESUMO ─── */
-.resumo-box {
-  background: rgba(255,255,255,0.35);
-  border-radius: 18px;
-  padding: 18px 16px;
-  margin-bottom: 18px;
-  text-align: left;
-}
-.resumo-box .linha-resumo {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 14px;
-  color: #3f2922;
-  padding: 5px 0;
-  border-bottom: 1px solid rgba(107,74,63,0.1);
-}
-.resumo-box .linha-resumo:last-child { border-bottom: none; }
-.resumo-box .linha-resumo span:first-child { color: #6b4a3f; font-size: 13px; }
-.resumo-box .linha-resumo strong { font-weight: 600; }
+/* ══ CAMPOS ══ */
+.campo-grupo{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.campo-label{font-size:11px;font-weight:600;color:#6b4a3f;letter-spacing:0.5px;text-transform:uppercase;padding-left:2px;display:flex;align-items:center;gap:5px}
+.campo-input-wrap{position:relative;display:flex;align-items:center}
+.campo-icone{position:absolute;left:14px;font-size:15px;pointer-events:none;z-index:1;opacity:0.5}
+.campo-input{width:100%;padding:13px 14px 13px 40px;border:2px solid rgba(107,74,63,0.15);border-radius:14px;font-size:14px;font-family:Poppins,sans-serif;background:rgba(255,255,255,0.75);color:#3f2922;outline:none;transition:all 0.2s;-webkit-appearance:none;appearance:none}
+.campo-input:focus{border-color:#e38f7a;background:rgba(255,255,255,0.95);box-shadow:0 0 0 3px rgba(227,143,122,0.18)}
+.campo-input::placeholder{color:#b09080}
+.campo-select-wrap::after{content:"▾";position:absolute;right:14px;top:50%;transform:translateY(-50%);color:#6b4a3f;opacity:0.6;pointer-events:none;font-size:14px}
+.campo-input[type="date"]::-webkit-calendar-picker-indicator{opacity:0.5;cursor:pointer;font-size:16px}
 
-/* ─── OPÇÕES PIX ─── */
-.pix-opcoes {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-.pix-card {
-  background: rgba(255,255,255,0.35);
-  border: 2px solid transparent;
-  border-radius: 18px;
-  padding: 18px 14px;
-  cursor: pointer;
-  text-align: center;
-  transition: 0.25s;
-  position: relative;
-}
-.pix-card:hover { background: rgba(255,255,255,0.55); transform: translateY(-2px); }
-.pix-card.selecionado {
-  border-color: #e38f7a;
-  background: rgba(255,255,255,0.6);
-  box-shadow: 0 4px 16px rgba(227,143,122,0.3);
-}
-.pix-card .pix-icone { font-size: 28px; margin-bottom: 6px; }
-.pix-card .pix-titulo { font-size: 14px; font-weight: 600; color: #3f2922; margin-bottom: 4px; }
-.pix-card .pix-valor { font-size: 20px; font-weight: 600; color: #e38f7a; }
-.pix-card .pix-desc { font-size: 11px; color: #6b4a3f; margin-top: 4px; line-height: 1.4; }
-.pix-card .check-badge {
-  position: absolute;
-  top: 10px; right: 10px;
-  width: 20px; height: 20px;
-  background: #e38f7a;
-  border-radius: 50%;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  color: white;
-}
-.pix-card.selecionado .check-badge { display: flex; }
+/* ══ GRADE HORÁRIOS ══ */
+.horarios-titulo{font-size:11px;font-weight:600;color:#6b4a3f;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:5px}
+.horarios-legenda{display:flex;gap:14px;margin-bottom:12px;flex-wrap:wrap}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:#6b4a3f;opacity:0.85}
+.leg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.leg-dot.disponivel{background:#6ecb8b}
+.leg-dot.ocupado{background:#ff7b7b}
+.leg-dot.encerrado{background:#b0a09a}
 
-/* ─── QR CODE / CHAVE ─── */
-.pix-info-box {
-  background: rgba(255,255,255,0.5);
-  border-radius: 18px;
-  padding: 20px;
-  margin-bottom: 18px;
-  text-align: center;
-}
-.pix-chave-display {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: rgba(255,255,255,0.7);
-  border-radius: 12px;
-  padding: 12px 14px;
-  margin: 12px 0;
-  gap: 8px;
-}
-.pix-chave-display span {
-  font-size: 14px;
-  color: #3f2922;
-  font-weight: 500;
-  word-break: break-all;
-  text-align: left;
-  flex: 1;
-}
-.btn-copiar {
-  background: #e38f7a;
-  color: white;
-  border: none;
-  padding: 8px 14px;
-  border-radius: 10px;
-  font-size: 12px;
-  font-family: Poppins, sans-serif;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: 0.2s;
-  flex-shrink: 0;
-}
-.btn-copiar:hover { filter: brightness(1.1); }
-.pix-valor-grande {
-  font-size: 28px;
-  font-weight: 600;
-  color: #6b4a3f;
-  margin: 8px 0 4px;
-}
-.pix-nome-recebedor {
-  font-size: 13px;
-  color: #6b4a3f;
-  margin-bottom: 12px;
-}
-.aviso-pix {
-  background: rgba(110,203,139,0.2);
-  border-radius: 12px;
-  padding: 10px 14px;
-  font-size: 12px;
-  color: #064420;
-  margin-bottom: 14px;
-  line-height: 1.5;
-}
-.aguardando-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(240,192,96,0.25);
-  color: #7a5700;
-  font-size: 12px;
-  font-weight: 500;
-  padding: 6px 14px;
-  border-radius: 20px;
-  margin-bottom: 14px;
-}
-.dot-pulso {
-  width: 8px; height: 8px;
-  background: #f0c060;
-  border-radius: 50%;
-  animation: pulsar 1.4s ease-in-out infinite;
-}
-@keyframes pulsar { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
+.horarios-grade{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px}
 
-/* ─── SUCESSO ─── */
-.sucesso-box {
-  text-align: center;
-  padding: 20px 10px;
-}
-.sucesso-icone {
-  font-size: 56px;
-  margin-bottom: 10px;
-  animation: popIn .5s cubic-bezier(.34,1.56,.64,1);
-}
-@keyframes popIn { from{transform:scale(0);opacity:0} to{transform:scale(1);opacity:1} }
-.sucesso-titulo {
-  font-family: 'Great Vibes';
-  font-size: 36px;
-  color: #6b4a3f;
-  margin-bottom: 8px;
-}
-.sucesso-texto {
-  font-size: 14px;
-  color: #3f2922;
-  line-height: 1.6;
-}
+.horario-btn{padding:12px 6px;border-radius:14px;border:2px solid transparent;font-family:Poppins,sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.22s;text-align:center;display:flex;flex-direction:column;align-items:center;gap:3px}
+.horario-btn .h-hora{font-size:15px;font-weight:700;line-height:1}
+.horario-btn .h-tag{font-size:9px;font-weight:500;letter-spacing:0.4px;text-transform:uppercase;opacity:0.85;line-height:1}
+
+.horario-btn.disponivel{background:rgba(110,203,139,0.18);border-color:rgba(110,203,139,0.4);color:#1a5e35}
+.horario-btn.disponivel:hover{background:rgba(110,203,139,0.35);border-color:#6ecb8b;transform:translateY(-2px);box-shadow:0 6px 16px rgba(110,203,139,0.3)}
+.horario-btn.disponivel.selecionado{background:#6ecb8b;border-color:#6ecb8b;color:white;box-shadow:0 6px 20px rgba(110,203,139,0.45);transform:translateY(-2px) scale(1.04)}
+
+.horario-btn.ocupado{background:rgba(255,123,123,0.12);border-color:rgba(255,123,123,0.3);color:#8a2020;cursor:not-allowed;opacity:0.7}
+.horario-btn.encerrado{background:rgba(176,160,154,0.1);border-color:rgba(176,160,154,0.2);color:#8a7a76;cursor:not-allowed;opacity:0.5}
+.horario-btn.encerrado .h-hora{text-decoration:line-through;text-decoration-color:rgba(138,122,118,0.6)}
+
+.aviso-sem-data{text-align:center;padding:20px;font-size:13px;color:#6b4a3f;opacity:0.7;background:rgba(255,255,255,0.25);border-radius:14px;border:2px dashed rgba(107,74,63,0.18);grid-column:1/-1}
+
+/* ══ BOTÃO CONTINUAR ══ */
+.btn-continuar{width:100%;padding:16px;background:linear-gradient(135deg,#e38f7a,#c97060);color:white;border:none;border-radius:50px;font-size:16px;font-family:Poppins,sans-serif;font-weight:600;cursor:pointer;box-shadow:0 8px 24px rgba(227,143,122,0.4);transition:all 0.3s;letter-spacing:0.3px;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px;position:relative;overflow:hidden}
+.btn-continuar::before{content:"";position:absolute;top:0;left:-75%;width:50%;height:100%;background:linear-gradient(120deg,transparent,rgba(255,255,255,0.25),transparent);transform:skewX(-25deg);transition:0.7s}
+.btn-continuar:hover::before{left:130%}
+.btn-continuar:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(227,143,122,0.5)}
+
+/* ══ TELA 2 PAGAMENTO ══ */
+.resumo-box{background:rgba(255,255,255,0.4);border-radius:18px;padding:16px 18px;margin-bottom:20px;text-align:left;border:1px solid rgba(107,74,63,0.1)}
+.resumo-box .linha-resumo{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#3f2922;padding:6px 0;border-bottom:1px solid rgba(107,74,63,0.08)}
+.resumo-box .linha-resumo:last-child{border-bottom:none}
+.resumo-box .linha-resumo span:first-child{color:#6b4a3f;font-size:12px}
+.resumo-box .linha-resumo strong{font-weight:600}
+.pix-opcoes{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+.pix-card{background:rgba(255,255,255,0.35);border:2px solid transparent;border-radius:18px;padding:18px 14px;cursor:pointer;text-align:center;transition:0.25s;position:relative}
+.pix-card:hover{background:rgba(255,255,255,0.55);transform:translateY(-2px)}
+.pix-card.selecionado{border-color:#e38f7a;background:rgba(255,255,255,0.65);box-shadow:0 4px 18px rgba(227,143,122,0.3)}
+.pix-card .pix-icone{font-size:26px;margin-bottom:6px}
+.pix-card .pix-titulo{font-size:13px;font-weight:600;color:#3f2922;margin-bottom:4px}
+.pix-card .pix-valor{font-size:20px;font-weight:700;color:#e38f7a}
+.pix-card .pix-desc{font-size:10px;color:#6b4a3f;margin-top:4px;line-height:1.4}
+.pix-card .check-badge{position:absolute;top:10px;right:10px;width:20px;height:20px;background:#e38f7a;border-radius:50%;display:none;align-items:center;justify-content:center;font-size:11px;color:white}
+.pix-card.selecionado .check-badge{display:flex}
+.pix-info-box{background:rgba(255,255,255,0.5);border-radius:18px;padding:20px;margin-bottom:16px;text-align:center;border:1px solid rgba(107,74,63,0.1)}
+.pix-chave-display{display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.8);border-radius:12px;padding:12px 14px;margin:12px 0;gap:8px;border:1px solid rgba(107,74,63,0.1)}
+.pix-chave-display span{font-size:14px;color:#3f2922;font-weight:600;word-break:break-all;text-align:left;flex:1}
+.btn-copiar{background:#e38f7a;color:white;border:none;padding:8px 14px;border-radius:10px;font-size:12px;font-family:Poppins,sans-serif;cursor:pointer;white-space:nowrap;transition:0.2s;flex-shrink:0}
+.btn-copiar:hover{filter:brightness(1.1)}
+.pix-valor-grande{font-size:30px;font-weight:700;color:#6b4a3f;margin:8px 0 2px}
+.pix-nome-recebedor{font-size:13px;color:#6b4a3f;margin-bottom:12px;opacity:0.8}
+.aviso-pix{background:rgba(110,203,139,0.2);border-radius:12px;padding:10px 14px;font-size:12px;color:#064420;margin-bottom:12px;line-height:1.5}
+.aguardando-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(240,192,96,0.25);color:#7a5700;font-size:12px;font-weight:500;padding:6px 14px;border-radius:20px}
+.dot-pulso{width:8px;height:8px;background:#f0c060;border-radius:50%;animation:pulsar 1.4s ease-in-out infinite}
+@keyframes pulsar{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.3)}}
+#timer-reserva{display:none;border-radius:14px;padding:12px 16px;font-size:13px;color:#7a5700;margin-bottom:12px;text-align:center;line-height:1.5;font-weight:500;border:1px solid rgba(240,192,96,0.4)}
+.btn-ja-paguei{width:100%;padding:16px;background:linear-gradient(135deg,#6ecb8b,#4db874);color:white;border:none;border-radius:50px;font-size:16px;font-family:Poppins,sans-serif;font-weight:600;cursor:pointer;box-shadow:0 8px 24px rgba(110,203,139,0.4);transition:all 0.3s;display:none;align-items:center;justify-content:center;gap:8px;margin-top:4px}
+.btn-ja-paguei:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(110,203,139,0.5)}
+.btn-voltar-pag{width:100%;padding:14px;background:rgba(255,255,255,0.3);color:#6b4a3f;border:2px solid rgba(107,74,63,0.15);border-radius:50px;font-size:14px;font-family:Poppins,sans-serif;font-weight:500;cursor:pointer;transition:0.2s;margin-top:10px}
+.btn-voltar-pag:hover{background:rgba(255,255,255,0.5)}
+
+/* ══ SUCESSO ══ */
+.sucesso-box{text-align:center;padding:24px 10px 16px}
+.sucesso-icone{font-size:60px;margin-bottom:12px;animation:popIn .5s cubic-bezier(.34,1.56,.64,1)}
+@keyframes popIn{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+.sucesso-titulo{font-family:'Great Vibes';font-size:42px;color:#6b4a3f;margin-bottom:10px}
+.sucesso-texto{font-size:14px;color:#3f2922;line-height:1.7;white-space:pre-line}
+
 </style>
 </head>
 <body>
@@ -291,7 +122,7 @@
     <p class="frase" id="frase-site">Realçando sua beleza natural</p>
   </div>
 
-  <!-- INDICADOR DE ETAPAS -->
+  <!-- ETAPAS -->
   <div class="etapas">
     <div class="etapa-item">
       <div class="etapa-circulo ativa" id="circ-1">1</div>
@@ -309,70 +140,109 @@
     </div>
   </div>
 
-  <!-- ══ TELA 1: DADOS DO AGENDAMENTO ══ -->
+  <!-- ══ TELA 1: DADOS ══ -->
   <div id="tela-1" class="tela ativa">
-    <section class="agenda">
-      <h2>Agendar Horário</h2>
-      <input  type="text" id="nome"      placeholder="Seu nome completo">
-      <input  type="tel"  id="telefone"  placeholder="Seu WhatsApp">
-      <select id="servico"></select>
-      <div class="data-wrapper">
-        <span class="data-label">📅 Escolha a data</span>
-        <input type="date" id="data" class="data-input-destaque">
+    <div class="ag-card">
+      <div class="ag-titulo">Agendar</div>
+      <div class="ag-subtitulo">Preencha os dados e escolha seu horário</div>
+      <div class="ag-divisor"></div>
+
+      <div class="campo-grupo">
+        <label class="campo-label">👤 Seu nome</label>
+        <div class="campo-input-wrap">
+          <span class="campo-icone">✦</span>
+          <input type="text" id="nome" class="campo-input" placeholder="Nome completo">
+        </div>
       </div>
-      <select id="hora"></select>
-      <button class="botao" onclick="irParaPagamento()" style="cursor:pointer">
-        Continuar →
-      </button>
-    </section>
+
+      <div class="campo-grupo">
+        <label class="campo-label">📱 WhatsApp</label>
+        <div class="campo-input-wrap">
+          <span class="campo-icone">✦</span>
+          <input type="tel" id="telefone" class="campo-input" placeholder="(82) 9 9999-9999">
+        </div>
+      </div>
+
+      <div class="campo-grupo">
+        <label class="campo-label">💅 Serviço</label>
+        <div class="campo-input-wrap campo-select-wrap">
+          <span class="campo-icone">✦</span>
+          <select id="servico" class="campo-input"></select>
+        </div>
+      </div>
+
+      <div class="campo-grupo">
+        <label class="campo-label">📅 Data do atendimento</label>
+        <div class="campo-input-wrap">
+          <span class="campo-icone">✦</span>
+          <input type="date" id="data" class="campo-input" style="padding-left:40px">
+        </div>
+      </div>
+
+      <div class="campo-grupo">
+        <div class="horarios-titulo">🕐 Horários disponíveis</div>
+        <div class="horarios-legenda">
+          <div class="leg-item"><div class="leg-dot disponivel"></div>Disponível</div>
+          <div class="leg-item"><div class="leg-dot ocupado"></div>Ocupado</div>
+          <div class="leg-item"><div class="leg-dot encerrado"></div>Encerrado</div>
+        </div>
+        <div class="horarios-grade" id="horarios-grade">
+          <div class="aviso-sem-data">Selecione uma data para ver os horários 📅</div>
+        </div>
+        <input type="hidden" id="hora">
+      </div>
+
+      <button class="btn-continuar" onclick="irParaPagamento()">Continuar →</button>
+    </div>
   </div>
 
-  <!-- ══ TELA 2: PAGAMENTO PIX ══ -->
+  <!-- ══ TELA 2: PAGAMENTO ══ -->
   <div id="tela-2" class="tela">
-    <section class="agenda">
-      <h2>Pagamento Pix</h2>
+    <div class="ag-card">
+      <div class="ag-titulo">Pagamento</div>
+      <div class="ag-subtitulo">Revise o resumo e escolha como pagar</div>
+      <div class="ag-divisor"></div>
 
       <div class="resumo-box" id="resumo"></div>
 
-      <p style="font-size:13px;color:#6b4a3f;margin-bottom:12px;text-align:left">Escolha como deseja pagar:</p>
+      <p style="font-size:11px;color:#6b4a3f;margin-bottom:12px;font-weight:600;letter-spacing:0.4px;text-transform:uppercase">Como deseja pagar?</p>
 
       <div class="pix-opcoes" id="pix-opcoes"></div>
 
       <div class="pix-info-box" id="pix-info" style="display:none">
-        <p style="font-size:13px;color:#6b4a3f;margin-bottom:4px">Pague via Pix para</p>
+        <p style="font-size:12px;color:#6b4a3f;margin-bottom:4px;opacity:.8">Pague via Pix para</p>
         <div class="pix-nome-recebedor" id="pix-nome-display"></div>
         <div class="pix-valor-grande" id="pix-valor-display"></div>
         <div class="pix-chave-display">
           <span id="pix-chave-display"></span>
           <button class="btn-copiar" onclick="copiarChave()">📋 Copiar</button>
         </div>
-        <div class="aviso-pix">✅ Pague o Pix e clique em <strong>"Já paguei"</strong> para enviar o comprovante à Patricia pelo WhatsApp. Ela confirmará em instantes!</div>
+        <div class="aviso-pix">✅ Após pagar, clique em <strong>"Já paguei"</strong> para enviar o comprovante à Patricia pelo WhatsApp.</div>
         <div class="aguardando-badge"><div class="dot-pulso"></div> Aguardando pagamento</div>
       </div>
 
-      <!-- timer de reserva -->
-      <div id="timer-reserva" style="display:none;background:rgba(240,192,96,0.2);border-radius:12px;padding:10px 14px;font-size:13px;color:#7a5700;margin-bottom:10px;text-align:center;line-height:1.5"></div>
+      <div id="timer-reserva"></div>
 
-      <button class="botao" id="btn-ja-paguei" style="display:none;cursor:pointer;background:#6ecb8b" onclick="finalizarAgendamento()">
-        ✅ Já paguei — Enviar comprovante pelo WhatsApp
+      <button class="btn-ja-paguei" id="btn-ja-paguei" onclick="finalizarAgendamento()">
+        ✅ Já paguei — Enviar comprovante
       </button>
 
-      <button class="botao" style="cursor:pointer;margin-top:10px;background:rgba(255,255,255,0.3);color:#6b4a3f" onclick="voltarEtapa1()">
-        ← Voltar
-      </button>
-    </section>
+      <button class="btn-voltar-pag" onclick="voltarEtapa1()">← Voltar</button>
+    </div>
   </div>
 
   <!-- ══ TELA 3: SUCESSO ══ -->
   <div id="tela-3" class="tela">
-    <section class="agenda">
+    <div class="ag-card">
       <div class="sucesso-box">
         <div class="sucesso-icone">🎉</div>
         <div class="sucesso-titulo">Agendado!</div>
         <p class="sucesso-texto" id="sucesso-texto"></p>
       </div>
-      <a href="index.html" class="botao" style="margin-top:10px">🏠 Voltar para início</a>
-    </section>
+      <a href="index.html" class="btn-continuar" style="text-decoration:none;margin-top:16px">
+        🏠 Voltar para início
+      </a>
+    </div>
   </div>
 
   <a href="index.html" class="botao" id="btn-voltar-inicio" style="margin-top:16px">

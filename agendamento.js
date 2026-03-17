@@ -62,69 +62,94 @@ async function carregarServicos() {
   ).join("");
 }
 
-// ─── Horários ────────────────────────────────
+// ─── Horários — Grade Visual ─────────────────
 async function carregarHorarios() {
   const dataSel    = document.getElementById("data")?.value || "";
-  const horaSelect = document.getElementById("hora");
-  if (!horaSelect) return;
+  const grade      = document.getElementById("horarios-grade");
+  const horaHidden = document.getElementById("hora");
+  if (!grade) return;
+
+  if (!dataSel) {
+    grade.innerHTML = '<div class="aviso-sem-data">Selecione uma data para ver os horários 📅</div>';
+    if (horaHidden) horaHidden.value = "";
+    return;
+  }
+
+  grade.innerHTML = '<div class="aviso-sem-data" style="opacity:.6">Carregando horários...</div>';
 
   const horariosAtivos  = await dbGetConfig("horariosAtivos",  getCfgLocal("horariosAtivos",  ["09:00","10:00","11:00","13:00","14:00","15:00"]));
   const datasBloqueadas = await dbGetConfig("datasBloqueadas", getCfgLocal("datasBloqueadas", []));
 
-  if (dataSel && datasBloqueadas.includes(dataSel)) {
-    horaSelect.innerHTML = '<option disabled selected>Esta data está indisponível</option>';
+  if (datasBloqueadas.includes(dataSel)) {
+    grade.innerHTML = '<div class="aviso-sem-data">❌ Esta data está indisponível</div>';
+    if (horaHidden) horaHidden.value = "";
     return;
   }
 
   const agora = new Date();
   const hoje  = agora.toISOString().split("T")[0];
 
-  let ocupados = [];
-  if (dataSel) {
-    // tenta buscar com colunas novas (reservado_ate, status)
-    let rows = null;
-    const { data, error } = await sb.from("agendamentos")
-      .select("hora, data, status, reservado_ate")
+  // busca horários ocupados — fallback se colunas novas não existirem
+  let rows = [];
+  const { data, error } = await sb.from("agendamentos")
+    .select("hora, data, status, reservado_ate")
+    .eq("data", dataSel)
+    .neq("status", "cancelado")
+    .neq("status", "expirado");
+
+  if (error) {
+    const { data: data2 } = await sb.from("agendamentos")
+      .select("hora, data, status")
       .eq("data", dataSel)
-      .neq("status", "cancelado")
-      .neq("status", "expirado");
-
-    if (error) {
-      // fallback: busca só os campos básicos se colunas novas não existirem
-      const { data: data2 } = await sb.from("agendamentos")
-        .select("hora, data, status")
-        .eq("data", dataSel)
-        .neq("status", "cancelado");
-      rows = data2;
-    } else {
-      rows = data;
-    }
-
-    ocupados = (rows || []).filter(r => {
-      const dataHora = new Date(`${r.data}T${r.hora}:00`);
-      if (dataHora < agora) return false;
-      if (r.status === "reservado" && r.reservado_ate) {
-        return new Date(r.reservado_ate) > agora;
-      }
-      return true;
-    }).map(r => r.hora);
+      .neq("status", "cancelado");
+    rows = data2 || [];
+  } else {
+    rows = data || [];
   }
 
-  const opcoes = horariosAtivos.map(h => {
+  const ocupados = rows.filter(r => {
+    const dataHora = new Date(`${r.data}T${r.hora}:00`);
+    if (dataHora < agora) return false;
+    if (r.status === "reservado" && r.reservado_ate) {
+      return new Date(r.reservado_ate) > agora;
+    }
+    return true;
+  }).map(r => r.hora);
+
+  const horaSelecionada = horaHidden?.value || "";
+
+  grade.innerHTML = horariosAtivos.map(h => {
     const jaPassou = dataSel === hoje && new Date(`${dataSel}T${h}:00`) < agora;
     const ocupado  = ocupados.includes(h);
-    if (jaPassou) return `<option value="${h}" disabled>${h} (encerrado)</option>`;
-    if (ocupado)  return `<option value="${h}" disabled>${h} (ocupado)</option>`;
-    return `<option value="${h}">${h}</option>`;
-  });
+    let classe = "disponivel", tag = "Disponível", disabled = "";
+    if (jaPassou)      { classe = "encerrado"; tag = "Encerrado"; disabled = "disabled"; }
+    else if (ocupado)  { classe = "ocupado";   tag = "Ocupado";   disabled = "disabled"; }
+    const sel = (!jaPassou && !ocupado && h === horaSelecionada) ? " selecionado" : "";
+    return `<button type="button" class="horario-btn ${classe}${sel}" ${disabled}
+      onclick="${disabled ? "" : `selecionarHorario('${h}')`}">
+      <span class="h-hora">${h}</span>
+      <span class="h-tag">${tag}</span>
+    </button>`;
+  }).join("");
 
-  horaSelect.innerHTML = opcoes.join("");
+  // auto-seleciona o primeiro disponível
+  if (!horaSelecionada || !horariosAtivos.find(h => h === horaSelecionada && !ocupados.includes(h))) {
+    const primeiro = horariosAtivos.find(h => {
+      const jaPassou = dataSel === hoje && new Date(`${dataSel}T${h}:00`) < agora;
+      return !jaPassou && !ocupados.includes(h);
+    });
+    if (primeiro) selecionarHorario(primeiro);
+    else if (horaHidden) horaHidden.value = "";
+  }
+}
 
-  const primeiroDisponivel = horariosAtivos.find(h => {
-    const jaPassou = dataSel === hoje && new Date(`${dataSel}T${h}:00`) < agora;
-    return !jaPassou && !ocupados.includes(h);
-  });
-  if (primeiroDisponivel) horaSelect.value = primeiroDisponivel;
+function selecionarHorario(h) {
+  const horaHidden = document.getElementById("hora");
+  if (horaHidden) horaHidden.value = h;
+  document.querySelectorAll(".horario-btn.disponivel").forEach(btn => btn.classList.remove("selecionado"));
+  const btnSel = [...document.querySelectorAll(".horario-btn.disponivel")]
+    .find(btn => btn.querySelector(".h-hora")?.textContent.trim() === h);
+  if (btnSel) btnSel.classList.add("selecionado");
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -142,10 +167,14 @@ async function irParaPagamento() {
   const servico   = servicoEl.value;
   const preco     = parseFloat(servicoEl.selectedOptions[0]?.dataset.preco || 0);
   const data      = document.getElementById("data").value;
-  const hora      = document.getElementById("hora").value;
+  const hora      = document.getElementById("hora").value; // campo hidden preenchido pela grade
 
   if (!nome || !telefone || !data || !hora) {
-    alert("Preencha todos os campos antes de continuar.");
+    if (!hora && data) {
+      alert("Selecione um horário disponível antes de continuar.");
+    } else {
+      alert("Preencha todos os campos antes de continuar.");
+    }
     return;
   }
 
@@ -337,31 +366,22 @@ async function enviarComprovanteWhatsapp(modoPag, valorPago) {
   const numeroWpp = normalizarTel(await dbGetConfig("whatsapp", getCfgLocal("whatsapp", "5582996692302")));
   const pixChave  = await dbGetConfig("pixChave", getCfgLocal("pixChave", "yaranadiele@gmail.com"));
 
-  // muda status para aguardando_confirmacao (com fallback se coluna pix_valor não existir)
+  // muda status para aguardando_confirmacao
   if (id) {
-    // tenta update completo
-    const { error: errUpdate } = await sb.from("agendamentos").update({
+    await sb.from("agendamentos").update({
       status:    "aguardando_confirmacao",
       pagamento: modoPag,
       pix_valor: valorPago
     }).eq("id", id);
 
-    // se falhar (coluna pix_valor não existe ainda), faz update básico
-    if (errUpdate) {
-      await sb.from("agendamentos").update({
-        status:    "aguardando_confirmacao",
-        pagamento: modoPag
-      }).eq("id", id);
-    }
-
-    // salva no histórico de pagamentos (silencia erro se tabela não existir)
+    // salva no histórico de pagamentos
     await sb.from("pagamentos").upsert([{
       agendamento_id: id,
       valor:          valorPago,
       status:         "aguardando_confirmacao",
       descricao:      `${servico} - ${dataFmt} às ${hora}`,
       criado_em:      new Date().toISOString()
-    }], { onConflict: "agendamento_id" }).catch(e => console.warn("pagamentos:", e));
+    }], { onConflict: "agendamento_id" }).catch(e => console.warn("pagamentos upsert:", e));
   }
 
   let linhaPag = "";
