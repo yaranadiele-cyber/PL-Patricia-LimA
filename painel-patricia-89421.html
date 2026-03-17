@@ -578,5 +578,187 @@ function salvarFotos(){
   toast("Fotos do carrossel salvas! Recarregue a página inicial para ver.");
 }
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase.js"></script>
+<script>
+// ═══ SOBRESCREVE FUNÇÕES PARA USAR SUPABASE ═══
+
+// Reescreve getCfg/setCfg para usar banco
+async function getCfgDB(key) {
+  return await dbGetConfig(key, null);
+}
+async function setCfgDB(key, value) {
+  await dbSetConfig(key, value);
+  // mantém cópia local como cache
+  localStorage.setItem("cfg_" + key, JSON.stringify(value));
+}
+
+// Patch: iniciar agora carrega do banco
+const _iniciarOriginal = iniciar;
+iniciar = async function() {
+  mostrarCarregando(true);
+  try {
+    // carrega configs do banco para localStorage (cache)
+    const configs = await dbGetAllConfigs();
+    Object.entries(configs).forEach(([k,v]) => {
+      localStorage.setItem("cfg_" + k, JSON.stringify(v));
+    });
+  } catch(e) { console.warn("Offline, usando cache local", e); }
+  mostrarCarregando(false);
+  renderStats();
+  await renderAgendamentosDB();
+  carregarCfg();
+  renderServicos();
+  renderGrade();
+  renderDatasBloqueadas();
+  renderFotos();
+};
+
+function mostrarCarregando(sim) {
+  const el = document.getElementById("lista-agendamentos");
+  if (el && sim) el.innerHTML = '<div class="empty-state">Carregando...</div>';
+}
+
+// Agendamentos do banco
+async function renderAgendamentosDB() {
+  const fd = document.getElementById("filtro-data")?.value || "";
+  const fs = document.getElementById("filtro-status")?.value || "";
+
+  let query = sb.from("agendamentos").select("*").order("data").order("hora");
+  if (fd) query = query.eq("data", fd);
+  if (fs) query = query.eq("status", fs);
+
+  const { data, error } = await query;
+  if (error) { console.error(error); return; }
+
+  const lista = data || [];
+  const grid  = document.getElementById("lista-agendamentos");
+
+  // stats
+  const hoje = new Date().toISOString().split("T")[0];
+  const { data: todos } = await sb.from("agendamentos").select("*");
+  const all = todos || [];
+  document.getElementById("stats").innerHTML = `
+    <div class="stat-box"><div class="num">${all.length}</div><div class="leg">Total</div></div>
+    <div class="stat-box"><div class="num">${all.filter(a=>a.data===hoje).length}</div><div class="leg">Hoje</div></div>
+    <div class="stat-box"><div class="num">${all.filter(a=>a.status==="confirmado").length}</div><div class="leg">Confirmados</div></div>
+    <div class="stat-box"><div class="num">${all.filter(a=>!a.status||a.status==="pendente").length}</div><div class="leg">Pendentes</div></div>`;
+
+  if (!lista.length) {
+    grid.innerHTML = '<div class="empty-state">Nenhum agendamento encontrado.</div>';
+    return;
+  }
+
+  grid.innerHTML = lista.map(a => {
+    const st = a.status || "pendente";
+    return `<div class="card-agenda status-${st}">
+      <div class="cliente-nome">${a.nome}</div>
+      <div class="info-linha">💅 ${a.servico}</div>
+      <div class="info-linha">📅 ${fmtData(a.data)} às ${a.hora}</div>
+      <div class="info-linha">📱 ${a.telefone||"—"}</div>
+      ${a.pagamento ? `<div class="info-linha">💳 ${a.pagamento === "total" ? "Pagamento total" : "Entrada " + a.pagamento + "%"}</div>` : ""}
+      <span class="status-badge badge-${st}">${st.charAt(0).toUpperCase()+st.slice(1)}</span>
+      <div class="acoes-card">
+        <button class="btn-confirmar"     onclick="confirmarDB('${a.id}','${a.nome}','${a.servico}','${a.data}','${a.hora}','${a.telefone||""}')">✅ Confirmar</button>
+        <button class="btn-cancelar-card" onclick="cancelarDB('${a.id}','${a.nome}','${a.servico}','${a.data}','${a.hora}','${a.telefone||""}')">❌ Cancelar</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// Sobrescreve renderAgendamentos
+renderAgendamentos = function() { renderAgendamentosDB(); };
+renderStats        = function() {};  // incluído no renderAgendamentosDB
+
+async function confirmarDB(id, nome, servico, data, hora, tel) {
+  await dbAtualizarStatus(id, "confirmado");
+  const msg = (getCfg("msgConfirmacao") || "Olá {nome}! Seu agendamento foi CONFIRMADO.\n\nServiço: {servico}\nData: {data}\nHora: {hora}\n\nPatricia Lima 💅")
+    .replace("{nome}", nome).replace("{servico}", servico)
+    .replace("{data}", fmtData(data)).replace("{hora}", hora);
+  const t = tel.replace(/\D/g,"");
+  if (t) window.open(`https://wa.me/55${t}?text=${encodeURIComponent(msg)}`, "_blank");
+  toast("Agendamento confirmado!");
+  renderAgendamentosDB();
+}
+
+async function cancelarDB(id, nome, servico, data, hora, tel) {
+  const msg = (getCfg("msgCancelamento") || "Olá {nome}. Infelizmente seu agendamento foi CANCELADO.\n\nServiço: {servico}\nData: {data}\nHora: {hora}\n\nEntre em contato para reagendar.")
+    .replace("{nome}", nome).replace("{servico}", servico)
+    .replace("{data}", fmtData(data)).replace("{hora}", hora);
+  const t = tel.replace(/\D/g,"");
+  if (t) window.open(`https://wa.me/55${t}?text=${encodeURIComponent(msg)}`, "_blank");
+  await dbDeletarAgendamento(id);
+  toast("Agendamento cancelado.", true);
+  renderAgendamentosDB();
+}
+
+// Sobrescreve salvarConfiguracoes para gravar no banco
+const _salvarCfgOriginal = salvarConfiguracoes;
+salvarConfiguracoes = async function() {
+  const campos = {
+    nome:             document.getElementById("cfg-nome").value.trim(),
+    frase:            document.getElementById("cfg-frase").value.trim(),
+    whatsapp:         document.getElementById("cfg-whatsapp").value.trim(),
+    instagram:        document.getElementById("cfg-instagram").value.trim(),
+    msgConfirmacao:   document.getElementById("cfg-msg-confirmacao").value,
+    msgCancelamento:  document.getElementById("cfg-msg-cancelamento").value,
+    pixChave:         document.getElementById("cfg-pix-chave").value.trim(),
+    pixNome:          document.getElementById("cfg-pix-nome").value.trim(),
+    pixEntrada:       document.getElementById("cfg-pix-entrada").value,
+  };
+  for (const [k,v] of Object.entries(campos)) {
+    await dbSetConfig(k, v);
+  }
+  const ns = document.getElementById("cfg-senha").value;
+  if (ns) { setCfg("senha", ns); document.getElementById("cfg-senha").value = ""; }
+  toast("Configurações salvas no banco!");
+};
+
+// Sobrescreve salvarServicos
+const _salvarSvOriginal = salvarServicos;
+salvarServicos = async function() {
+  const sv = getCfg("servicos");
+  const novos = sv.map((_,i) => ({
+    nome:  document.getElementById(`sv-nome-${i}`).value.trim(),
+    preco: parseFloat(document.getElementById(`sv-preco-${i}`).value)||0
+  }));
+  await dbSetConfig("servicos", novos);
+  setCfg("servicos", novos);
+  toast("Serviços salvos no banco!");
+};
+
+// Sobrescreve salvarHorarios
+const _salvarHrOriginal = salvarHorarios;
+salvarHorarios = async function() {
+  const ativos = [...document.querySelectorAll("#grade-horarios input:checked")].map(i=>i.value);
+  await dbSetConfig("horariosAtivos", ativos);
+  setCfg("horariosAtivos", ativos);
+  toast("Horários salvos no banco!");
+};
+
+// Sobrescreve bloquearData
+const _bloquearOriginal = bloquearData;
+bloquearData = async function() {
+  const d = document.getElementById("data-bloqueio").value;
+  if (!d) { toast("Selecione uma data.", true); return; }
+  const bl = getCfg("datasBloqueadas") || [];
+  if (bl.includes(d)) { toast("Data já bloqueada."); return; }
+  bl.push(d);
+  await dbSetConfig("datasBloqueadas", bl);
+  setCfg("datasBloqueadas", bl);
+  document.getElementById("data-bloqueio").value = "";
+  renderDatasBloqueadas();
+  toast("Data bloqueada!");
+};
+
+const _desbloquearOriginal = desbloquearData;
+desbloquearData = async function(d) {
+  const bl = (getCfg("datasBloqueadas")||[]).filter(x=>x!==d);
+  await dbSetConfig("datasBloqueadas", bl);
+  setCfg("datasBloqueadas", bl);
+  renderDatasBloqueadas();
+  toast("Data desbloqueada.");
+};
+</script>
 </body>
 </html>

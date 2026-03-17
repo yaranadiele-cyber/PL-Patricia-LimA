@@ -1,36 +1,31 @@
 // ═══════════════════════════════════════════════
-//  HELPERS DE CONFIG
+//  ESTADO GLOBAL
 // ═══════════════════════════════════════════════
-function getCfg(key, fallback) {
+let dadosAgendamento = {};
+let pagamentoSelecionado = null;
+
+// fallback local (caso Supabase demore)
+function getCfgLocal(key, fallback) {
   const raw = localStorage.getItem("cfg_" + key);
   return raw !== null ? JSON.parse(raw) : fallback;
 }
 
 // ═══════════════════════════════════════════════
-//  ESTADO GLOBAL
+//  INICIALIZAÇÃO
 // ═══════════════════════════════════════════════
-let dadosAgendamento = {};
-let pagamentoSelecionado = null; // "50" ou "total"
-
-// ═══════════════════════════════════════════════
-//  CARREGAMENTO INICIAL
-// ═══════════════════════════════════════════════
-window.onload = function () {
-  carregarServicos();
-  carregarHorarios();
+window.onload = async function () {
+  await carregarServicos();
+  await carregarHorarios();
   aplicarFrase();
   aplicarFotosCarrossel();
 };
 
-function aplicarFrase() {
-  const frase = getCfg("frase", null);
-  if (frase) {
-    const el = document.getElementById("frase-site");
-    if (el) el.textContent = frase;
-  }
+async function aplicarFrase() {
+  const frase = await dbGetConfig("frase", getCfgLocal("frase", "Realçando sua beleza natural"));
+  const el = document.getElementById("frase-site");
+  if (el) el.textContent = frase;
 }
 
-// Aplica fotos do carrossel salvas no painel (se existirem)
 function aplicarFotosCarrossel() {
   const fotos = JSON.parse(localStorage.getItem("carrossel_fotos") || "[]");
   if (!fotos.length) return;
@@ -42,16 +37,20 @@ function aplicarFotosCarrossel() {
 }
 
 // ─── Serviços ────────────────────────────────
-function carregarServicos() {
+async function carregarServicos() {
   const select = document.getElementById("servico");
   if (!select) return;
-  const servicos = getCfg("servicos", [
+
+  const defaultServicos = [
     { nome: "Design de sobrancelha",           preco: 40  },
     { nome: "Design de sobrancelha com Henna", preco: 40  },
     { nome: "Design de unhas",                 preco: 150 },
     { nome: "Penteados",                       preco: 120 },
     { nome: "Maquiagem",                       preco: 35  }
-  ]);
+  ];
+
+  const servicos = await dbGetConfig("servicos", getCfgLocal("servicos", defaultServicos));
+
   select.innerHTML = servicos.map(s =>
     `<option value="${s.nome}" data-preco="${s.preco}">
       ${s.nome}${s.preco ? " — R$ " + Number(s.preco).toFixed(2) : ""}
@@ -60,22 +59,31 @@ function carregarServicos() {
 }
 
 // ─── Horários ────────────────────────────────
-function carregarHorarios() {
-  const dataSel    = document.getElementById("data") ? document.getElementById("data").value : "";
+async function carregarHorarios() {
+  const dataSel    = document.getElementById("data")?.value || "";
   const horaSelect = document.getElementById("hora");
   if (!horaSelect) return;
 
-  const horariosAtivos  = getCfg("horariosAtivos",  ["09:00","10:00","11:00","13:00","14:00","15:00"]);
-  const datasBloqueadas = getCfg("datasBloqueadas", []);
-  const agendamentos    = JSON.parse(localStorage.getItem("agendamentos") || "[]");
+  const horariosAtivos  = await dbGetConfig("horariosAtivos",  getCfgLocal("horariosAtivos",  ["09:00","10:00","11:00","13:00","14:00","15:00"]));
+  const datasBloqueadas = await dbGetConfig("datasBloqueadas", getCfgLocal("datasBloqueadas", []));
 
   if (dataSel && datasBloqueadas.includes(dataSel)) {
     horaSelect.innerHTML = '<option disabled selected>Esta data está indisponível</option>';
     return;
   }
 
+  // busca horários ocupados no banco
+  let ocupados = [];
+  if (dataSel) {
+    const { data } = await sb.from("agendamentos")
+      .select("hora")
+      .eq("data", dataSel)
+      .neq("status", "cancelado");
+    ocupados = (data || []).map(r => r.hora);
+  }
+
   horaSelect.innerHTML = horariosAtivos.map(h => {
-    const ocupado = agendamentos.some(a => a.data === dataSel && a.hora === h);
+    const ocupado = ocupados.includes(h);
     return `<option value="${h}" ${ocupado ? "disabled" : ""}>${h}${ocupado ? " (ocupado)" : ""}</option>`;
   }).join("");
 }
@@ -86,40 +94,40 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ═══════════════════════════════════════════════
-//  ETAPA 1 → 2 : VALIDAR E IR PARA PAGAMENTO
+//  ETAPA 1 → 2
 // ═══════════════════════════════════════════════
-function irParaPagamento() {
-  const nome     = document.getElementById("nome").value.trim();
-  const telefone = document.getElementById("telefone").value.trim();
-  const servicoEl= document.getElementById("servico");
-  const servico  = servicoEl.value;
-  const preco    = parseFloat(servicoEl.selectedOptions[0]?.dataset.preco || 0);
-  const data     = document.getElementById("data").value;
-  const hora     = document.getElementById("hora").value;
+async function irParaPagamento() {
+  const nome      = document.getElementById("nome").value.trim();
+  const telefone  = document.getElementById("telefone").value.trim();
+  const servicoEl = document.getElementById("servico");
+  const servico   = servicoEl.value;
+  const preco     = parseFloat(servicoEl.selectedOptions[0]?.dataset.preco || 0);
+  const data      = document.getElementById("data").value;
+  const hora      = document.getElementById("hora").value;
 
   if (!nome || !telefone || !data || !hora) {
     alert("Preencha todos os campos antes de continuar.");
     return;
   }
 
-  // Verifica conflito
-  const agendamentos = JSON.parse(localStorage.getItem("agendamentos") || "[]");
-  if (agendamentos.some(a => a.data === data && a.hora === hora)) {
+  // verifica conflito no banco
+  const conflito = await dbVerificarConflito(data, hora);
+  if (conflito) {
     alert("Esse horário já está ocupado. Por favor, escolha outro.");
+    await carregarHorarios();
     return;
   }
 
   dadosAgendamento = { nome, telefone, servico, preco, data, hora };
 
-  const modoEntrada = getCfg("pixEntrada", "opcao");
+  const modoEntrada = await dbGetConfig("pixEntrada", getCfgLocal("pixEntrada", "opcao"));
 
-  // Se não exige entrada, pula direto para finalizar
   if (modoEntrada === "0") {
-    salvarEEnviarWhatsapp("total", preco);
+    await salvarEEnviarWhatsapp("total", preco);
     return;
   }
 
-  // Monta o resumo
+  // monta resumo
   const dataFmt = data.split("-").reverse().join("/");
   document.getElementById("resumo").innerHTML = `
     <div class="linha-resumo"><span>Serviço</span><strong>${servico}</strong></div>
@@ -128,14 +136,12 @@ function irParaPagamento() {
     ${preco ? `<div class="linha-resumo"><span>Valor total</span><strong>R$ ${preco.toFixed(2)}</strong></div>` : ""}
   `;
 
-  // Monta as opções de pagamento
   const pixOpcoes = document.getElementById("pix-opcoes");
   pagamentoSelecionado = null;
-  document.getElementById("pix-info").style.display = "none";
+  document.getElementById("pix-info").style.display    = "none";
   document.getElementById("btn-ja-paguei").style.display = "none";
 
   if (modoEntrada === "opcao") {
-    // cliente escolhe
     const metade = preco ? (preco / 2).toFixed(2) : null;
     pixOpcoes.innerHTML = `
       <div class="pix-card" id="op-50" onclick="selecionarPagamento('50')">
@@ -156,8 +162,8 @@ function irParaPagamento() {
   } else if (modoEntrada === "50") {
     const metade = preco ? (preco / 2).toFixed(2) : null;
     pixOpcoes.innerHTML = `
-      <div class="pix-card selecionado" id="op-50" onclick="selecionarPagamento('50')" style="grid-column:1/-1">
-        <div class="check-badge" style="display:flex">✓</div>
+      <div class="pix-card" id="op-50" style="grid-column:1/-1">
+        <div class="check-badge">✓</div>
         <div class="pix-icone">💸</div>
         <div class="pix-titulo">Entrada de 50% obrigatória</div>
         ${metade ? `<div class="pix-valor">R$ ${metade}</div>` : ""}
@@ -168,8 +174,8 @@ function irParaPagamento() {
   } else if (modoEntrada === "30") {
     const trintaPct = preco ? (preco * 0.3).toFixed(2) : null;
     pixOpcoes.innerHTML = `
-      <div class="pix-card selecionado" id="op-30" onclick="selecionarPagamento('30')" style="grid-column:1/-1">
-        <div class="check-badge" style="display:flex">✓</div>
+      <div class="pix-card" id="op-30" style="grid-column:1/-1">
+        <div class="check-badge">✓</div>
         <div class="pix-icone">💸</div>
         <div class="pix-titulo">Entrada de 30% obrigatória</div>
         ${trintaPct ? `<div class="pix-valor">R$ ${trintaPct}</div>` : ""}
@@ -183,34 +189,25 @@ function irParaPagamento() {
 }
 
 // ═══════════════════════════════════════════════
-//  SELECIONAR OPÇÃO DE PAGAMENTO
+//  SELECIONAR PAGAMENTO
 // ═══════════════════════════════════════════════
-function selecionarPagamento(opcao) {
+async function selecionarPagamento(opcao) {
   pagamentoSelecionado = opcao;
-
-  // remove seleção anterior
   document.querySelectorAll(".pix-card").forEach(c => c.classList.remove("selecionado"));
   const card = document.getElementById("op-" + opcao);
   if (card) card.classList.add("selecionado");
 
   const preco    = dadosAgendamento.preco || 0;
-  const pixChave = getCfg("pixChave", "");
-  const pixNome  = getCfg("pixNome",  "Patricia Lima");
+  const pixChave = await dbGetConfig("pixChave", getCfgLocal("pixChave", ""));
+  const pixNome  = await dbGetConfig("pixNome",  getCfgLocal("pixNome",  "Patricia Lima"));
 
-  let valorPix = 0;
-  if (opcao === "50")    valorPix = preco / 2;
-  else if (opcao === "30") valorPix = preco * 0.3;
-  else                   valorPix = preco;
+  let valorPix = opcao === "50" ? preco / 2 : opcao === "30" ? preco * 0.3 : preco;
 
-  // Mostra o bloco de informações Pix
-  const infoBox = document.getElementById("pix-info");
-  infoBox.style.display = "block";
-
-  document.getElementById("pix-nome-display").textContent  = pixNome;
-  document.getElementById("pix-valor-display").textContent  = valorPix ? `R$ ${valorPix.toFixed(2)}` : "—";
-  document.getElementById("pix-chave-display").textContent  = pixChave || "Chave não configurada — contate a profissional";
-
-  document.getElementById("btn-ja-paguei").style.display = "block";
+  document.getElementById("pix-info").style.display      = "block";
+  document.getElementById("pix-nome-display").textContent = pixNome;
+  document.getElementById("pix-valor-display").textContent = valorPix ? `R$ ${valorPix.toFixed(2)}` : "—";
+  document.getElementById("pix-chave-display").textContent = pixChave || "Chave não configurada — contate a profissional";
+  document.getElementById("btn-ja-paguei").style.display  = "block";
 }
 
 function copiarChave() {
@@ -223,87 +220,65 @@ function copiarChave() {
 }
 
 // ═══════════════════════════════════════════════
-//  FINALIZAR: SALVAR E ABRIR WHATSAPP
+//  FINALIZAR
 // ═══════════════════════════════════════════════
-function finalizarAgendamento() {
-  if (!pagamentoSelecionado) {
-    alert("Selecione uma opção de pagamento.");
-    return;
-  }
+async function finalizarAgendamento() {
+  if (!pagamentoSelecionado) { alert("Selecione uma opção de pagamento."); return; }
   const preco = dadosAgendamento.preco || 0;
-  let valorPago = 0;
-  if (pagamentoSelecionado === "50")    valorPago = preco / 2;
-  else if (pagamentoSelecionado === "30") valorPago = preco * 0.3;
-  else                                   valorPago = preco;
-
-  salvarEEnviarWhatsapp(pagamentoSelecionado, valorPago);
+  let valorPago = pagamentoSelecionado === "50" ? preco / 2 : pagamentoSelecionado === "30" ? preco * 0.3 : preco;
+  await salvarEEnviarWhatsapp(pagamentoSelecionado, valorPago);
 }
 
-function salvarEEnviarWhatsapp(modoPag, valorPago) {
+async function salvarEEnviarWhatsapp(modoPag, valorPago) {
   const { nome, telefone, servico, preco, data, hora } = dadosAgendamento;
 
-  // Salva o agendamento
-  const agendamentos = JSON.parse(localStorage.getItem("agendamentos") || "[]");
-  agendamentos.push({ nome, telefone, servico, preco, data, hora, status: "pendente", pagamento: modoPag });
-  localStorage.setItem("agendamentos", JSON.stringify(agendamentos));
-
-  const dataFmt = data.split("-").reverse().join("/");
-  const numeroWpp = getCfg("whatsapp", "5582996692302");
-
-  // Monta mensagem
-  let linhaPagamento = "";
-  if (modoPag === "total" && valorPago > 0) {
-    linhaPagamento = `\nPagamento: Total via Pix (R$ ${valorPago.toFixed(2)})`;
-  } else if (modoPag === "50" && valorPago > 0) {
-    linhaPagamento = `\nPagamento: Entrada de 50% via Pix (R$ ${valorPago.toFixed(2)}) — restante no dia`;
-  } else if (modoPag === "30" && valorPago > 0) {
-    linhaPagamento = `\nPagamento: Entrada de 30% via Pix (R$ ${valorPago.toFixed(2)}) — restante no dia`;
+  // salva no Supabase
+  const ag = await dbSalvarAgendamento({ nome, telefone, servico, preco, data, hora, status: "pendente", pagamento: modoPag });
+  if (!ag) {
+    alert("Erro ao salvar agendamento. Tente novamente.");
+    return;
   }
+
+  const dataFmt   = data.split("-").reverse().join("/");
+  const numeroWpp = await dbGetConfig("whatsapp", getCfgLocal("whatsapp", "5582996692302"));
+
+  let linhaPagamento = "";
+  if (modoPag === "total" && valorPago > 0)
+    linhaPagamento = `\nPagamento: Total via Pix (R$ ${valorPago.toFixed(2)})`;
+  else if (modoPag === "50" && valorPago > 0)
+    linhaPagamento = `\nPagamento: Entrada 50% via Pix (R$ ${valorPago.toFixed(2)}) — restante no dia`;
+  else if (modoPag === "30" && valorPago > 0)
+    linhaPagamento = `\nPagamento: Entrada 30% via Pix (R$ ${valorPago.toFixed(2)}) — restante no dia`;
 
   const mensagem =
     `Olá Patricia! Gostaria de agendar:\n\n` +
-    `Nome: ${nome}\n` +
-    `Serviço: ${servico}\n` +
-    `Data: ${dataFmt}\n` +
-    `Hora: ${hora}` +
+    `Nome: ${nome}\nServiço: ${servico}\nData: ${dataFmt}\nHora: ${hora}` +
     linhaPagamento;
 
   window.open(`https://wa.me/${numeroWpp}?text=${encodeURIComponent(mensagem)}`, "_blank");
 
-  // Exibe tela de sucesso
-  const txtSucesso = `Seu agendamento foi enviado para Patricia pelo WhatsApp! 😊\n\n` +
-    `${servico} — ${dataFmt} às ${hora}` +
+  const txt = `Seu agendamento foi enviado para Patricia pelo WhatsApp! 😊\n\n${servico} — ${dataFmt} às ${hora}` +
     (valorPago > 0 ? `\n\nLembre-se de enviar o comprovante do Pix de R$ ${valorPago.toFixed(2)}.` : "");
-  document.getElementById("sucesso-texto").textContent = txtSucesso;
-
+  document.getElementById("sucesso-texto").textContent = txt;
   irParaTela(3);
   document.getElementById("btn-voltar-inicio").style.display = "none";
 }
 
 // ═══════════════════════════════════════════════
-//  NAVEGAÇÃO ENTRE TELAS
+//  NAVEGAÇÃO
 // ═══════════════════════════════════════════════
 function irParaTela(n) {
   document.querySelectorAll(".tela").forEach(t => t.classList.remove("ativa"));
   document.getElementById("tela-" + n).classList.add("ativa");
-
-  // atualiza indicador de etapas
-  [1, 2, 3].forEach(i => {
+  [1,2,3].forEach(i => {
     const circ = document.getElementById("circ-" + i);
-    const lbl  = document.getElementById("lbl-" + i) || circ.nextElementSibling;
-    circ.classList.remove("ativa", "feita");
+    const lbl  = document.getElementById("lbl-" + i);
+    circ.classList.remove("ativa","feita");
     if (lbl) lbl.classList.remove("ativa");
-    if (i < n) { circ.classList.add("feita"); circ.textContent = "✓"; }
-    else if (i === n) {
-      circ.classList.add("ativa");
-      circ.textContent = i;
-      if (lbl) lbl.classList.add("ativa");
-    } else {
-      circ.textContent = i;
-    }
+    if (i < n)       { circ.classList.add("feita"); circ.textContent = "✓"; }
+    else if (i === n) { circ.classList.add("ativa"); circ.textContent = i; if(lbl) lbl.classList.add("ativa"); }
+    else              { circ.textContent = i; }
   });
-
-  // esconde botão voltar no sucesso
   const btnVoltar = document.getElementById("btn-voltar-inicio");
   if (btnVoltar) btnVoltar.style.display = n === 3 ? "none" : "flex";
 }
