@@ -20,13 +20,43 @@ async function dbGetAgendamentos() {
 }
 
 async function dbSalvarAgendamento(ag) {
+  // tenta inserir com todos os campos
   const { data, error } = await sb
     .from("agendamentos")
     .insert([ag])
     .select()
     .single();
-  if (error) { console.error(error); return null; }
-  return data;
+
+  if (!error) return data;
+
+  // se der erro de coluna inexistente (ex: reservado_ate, pix_valor),
+  // tenta de novo só com os campos básicos que sempre existem
+  const msgErro = error?.message || "";
+  const erroColuna = msgErro.includes("column") || msgErro.includes("schema") || error?.code === "PGRST204" || error?.code === "42703";
+
+  if (erroColuna) {
+    console.warn("Coluna nova não existe ainda no banco. Execute o SQL de atualização. Tentando salvar campos básicos...");
+    const agBasico = {
+      nome:      ag.nome,
+      telefone:  ag.telefone,
+      servico:   ag.servico,
+      preco:     ag.preco,
+      data:      ag.data,
+      hora:      ag.hora,
+      status:    ag.status === "reservado" ? "pendente" : (ag.status || "pendente"),
+      pagamento: ag.pagamento || null
+    };
+    const { data: data2, error: error2 } = await sb
+      .from("agendamentos")
+      .insert([agBasico])
+      .select()
+      .single();
+    if (error2) { console.error("Erro ao salvar agendamento:", error2); return null; }
+    return data2;
+  }
+
+  console.error("Erro ao salvar agendamento:", error);
+  return null;
 }
 
 async function dbAtualizarStatus(id, status) {
