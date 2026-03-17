@@ -27,7 +27,6 @@ function getCfgLocal(key, fallback) {
 // ═══════════════════════════════════════════════
 window.onload = async function () {
   await carregarServicos();
-  await carregarHorarios();
   aplicarFrase();
 };
 
@@ -41,7 +40,6 @@ async function aplicarFrase() {
 async function carregarServicos() {
   const select = document.getElementById("servico");
   if (!select) return;
-
   const defaultServicos = [
     { nome: "Design de sobrancelha",           preco: 40  },
     { nome: "Design de sobrancelha com Henna", preco: 40  },
@@ -49,12 +47,10 @@ async function carregarServicos() {
     { nome: "Penteados",                       preco: 120 },
     { nome: "Maquiagem",                       preco: 35  }
   ];
-
   const servicosCompletos = await dbGetConfig("servicosCompletos", null);
   const servicos = servicosCompletos?.length
     ? servicosCompletos
     : await dbGetConfig("servicos", getCfgLocal("servicos", defaultServicos));
-
   select.innerHTML = servicos.map(s =>
     `<option value="${s.nome}" data-preco="${s.preco || 0}">
       ${s.nome}${s.preco ? " — R$ " + Number(s.preco).toFixed(2) : ""}
@@ -62,60 +58,116 @@ async function carregarServicos() {
   ).join("");
 }
 
-// ─── Horários ────────────────────────────────
+// ─── Horários — Grade Visual ─────────────────
 async function carregarHorarios() {
   const dataSel    = document.getElementById("data")?.value || "";
-  const horaSelect = document.getElementById("hora");
-  if (!horaSelect) return;
+  const grade      = document.getElementById("horarios-grade");
+  const horaHidden = document.getElementById("hora");
+  if (!grade) return;
+
+  if (!dataSel) {
+    grade.innerHTML = '<div class="aviso-sem-data">Selecione uma data para ver os horários 📅</div>';
+    if (horaHidden) horaHidden.value = "";
+    return;
+  }
+
+  grade.innerHTML = '<div class="aviso-sem-data" style="opacity:.6">⏳ Carregando horários...</div>';
 
   const horariosAtivos  = await dbGetConfig("horariosAtivos",  getCfgLocal("horariosAtivos",  ["09:00","10:00","11:00","13:00","14:00","15:00"]));
   const datasBloqueadas = await dbGetConfig("datasBloqueadas", getCfgLocal("datasBloqueadas", []));
 
-  if (dataSel && datasBloqueadas.includes(dataSel)) {
-    horaSelect.innerHTML = '<option disabled selected>Esta data está indisponível</option>';
+  if (datasBloqueadas.includes(dataSel)) {
+    grade.innerHTML = '<div class="aviso-sem-data">❌ Esta data está indisponível</div>';
+    if (horaHidden) horaHidden.value = "";
     return;
   }
 
   const agora = new Date();
   const hoje  = agora.toISOString().split("T")[0];
 
-  let ocupados = [];
-  if (dataSel) {
-    const { data } = await sb.from("agendamentos")
-      .select("hora, data, status, reservado_ate")
+  // busca horários ocupados — com fallback se colunas novas não existirem
+  let rows = [];
+  const { data, error } = await sb.from("agendamentos")
+    .select("hora, data, status, reservado_ate")
+    .eq("data", dataSel)
+    .neq("status", "cancelado")
+    .neq("status", "expirado");
+
+  if (error) {
+    const { data: data2 } = await sb.from("agendamentos")
+      .select("hora, data, status")
       .eq("data", dataSel)
-      .neq("status", "cancelado")
-      .neq("status", "expirado");
-
-    ocupados = (data || []).filter(r => {
-      const dataHora = new Date(`${r.data}T${r.hora}:00`);
-      if (dataHora < agora) return false; // horário já ocorreu = livre
-
-      // reserva temporária: só bloqueia se ainda não expirou
-      if (r.status === "reservado" && r.reservado_ate) {
-        return new Date(r.reservado_ate) > agora;
-      }
-      return true; // confirmado / pendente / aguardando = bloqueado
-    }).map(r => r.hora);
+      .neq("status", "cancelado");
+    rows = data2 || [];
+  } else {
+    rows = data || [];
   }
 
-  const opcoes = horariosAtivos.map(h => {
+  const ocupados = rows.filter(r => {
+    const dataHora = new Date(`${r.data}T${r.hora}:00`);
+    if (dataHora < agora) return false;
+    if (r.status === "reservado" && r.reservado_ate) {
+      return new Date(r.reservado_ate) > agora;
+    }
+    return true;
+  }).map(r => r.hora);
+
+  const horaSelecionada = horaHidden?.value || "";
+
+  // monta os botões da grade
+  grade.innerHTML = horariosAtivos.map(h => {
     const jaPassou = dataSel === hoje && new Date(`${dataSel}T${h}:00`) < agora;
     const ocupado  = ocupados.includes(h);
-    if (jaPassou) return `<option value="${h}" disabled>${h} (encerrado)</option>`;
-    if (ocupado)  return `<option value="${h}" disabled>${h} (ocupado)</option>`;
-    return `<option value="${h}">${h}</option>`;
-  });
 
-  horaSelect.innerHTML = opcoes.join("");
+    let classe   = "disponivel";
+    let tag      = "Disponível";
+    let disabled = "";
 
-  const primeiroDisponivel = horariosAtivos.find(h => {
-    const jaPassou = dataSel === hoje && new Date(`${dataSel}T${h}:00`) < agora;
-    return !jaPassou && !ocupados.includes(h);
-  });
-  if (primeiroDisponivel) horaSelect.value = primeiroDisponivel;
+    if (jaPassou)     { classe = "encerrado"; tag = "Encerrado"; disabled = "disabled"; }
+    else if (ocupado) { classe = "ocupado";   tag = "Ocupado";   disabled = "disabled"; }
+
+    const sel = (!disabled && h === horaSelecionada) ? " selecionado" : "";
+
+    return `<button type="button" class="horario-btn ${classe}${sel}" ${disabled}
+      ${disabled ? "" : `onclick="selecionarHorario('${h}')"`}>
+      <span class="h-hora">${h}</span>
+      <span class="h-tag">${tag}</span>
+    </button>`;
+  }).join("");
+
+  // auto-seleciona o primeiro disponível se nenhum válido selecionado
+  const horarioValidoSelecionado = horaSelecionada && horariosAtivos.includes(horaSelecionada)
+    && !ocupados.includes(horaSelecionada)
+    && !(dataSel === hoje && new Date(`${dataSel}T${horaSelecionada}:00`) < agora);
+
+  if (!horarioValidoSelecionado) {
+    const primeiro = horariosAtivos.find(h => {
+      const jaPassou = dataSel === hoje && new Date(`${dataSel}T${h}:00`) < agora;
+      return !jaPassou && !ocupados.includes(h);
+    });
+    if (primeiro) selecionarHorario(primeiro);
+    else if (horaHidden) horaHidden.value = "";
+  }
 }
 
+function selecionarHorario(h) {
+  const horaHidden = document.getElementById("hora");
+  if (horaHidden) horaHidden.value = h;
+
+  // remove selecionado de todos os disponíveis
+  document.querySelectorAll(".horario-btn.disponivel").forEach(btn => {
+    btn.classList.remove("selecionado");
+  });
+  // marca o clicado
+  const todos = document.querySelectorAll(".horario-btn.disponivel");
+  todos.forEach(btn => {
+    if (btn.querySelector(".h-hora")?.textContent.trim() === h) {
+      btn.classList.add("selecionado");
+    }
+  });
+}
+
+// listener no campo de data
 document.addEventListener("DOMContentLoaded", () => {
   const dataInput = document.getElementById("data");
   if (dataInput) dataInput.addEventListener("change", carregarHorarios);
@@ -133,8 +185,12 @@ async function irParaPagamento() {
   const data      = document.getElementById("data").value;
   const hora      = document.getElementById("hora").value;
 
-  if (!nome || !telefone || !data || !hora) {
+  if (!nome || !telefone || !data) {
     alert("Preencha todos os campos antes de continuar.");
+    return;
+  }
+  if (!hora) {
+    alert("Selecione um horário disponível antes de continuar.");
     return;
   }
 
@@ -146,21 +202,17 @@ async function irParaPagamento() {
 
   const conflito = await dbVerificarConflito(data, hora);
   if (conflito) {
-    alert("Esse horário acabou de ser reservado por outra pessoa. Por favor, escolha outro.");
+    alert("Esse horário acabou de ser reservado. Por favor, escolha outro.");
     await carregarHorarios();
     return;
   }
 
-  // ── Reserva o horário por 30 minutos ────────
+  // reserva por 30 min
   const reservadoAte = new Date(Date.now() + 30 * 60 * 1000).toISOString();
-
   const ag = await dbSalvarAgendamento({
     nome,
     telefone:      normalizarTel(telefone),
-    servico,
-    preco,
-    data,
-    hora,
+    servico, preco, data, hora,
     status:        "reservado",
     reservado_ate: reservadoAte,
     pagamento:     null
@@ -173,7 +225,6 @@ async function irParaPagamento() {
 
   dadosAgendamento = { id: ag.id, nome, telefone, servico, preco, data, hora };
 
-  // monta resumo
   const dataFmt = data.split("-").reverse().join("/");
   document.getElementById("resumo").innerHTML = `
     <div class="linha-resumo"><span>Serviço</span><strong>${servico}</strong></div>
@@ -183,19 +234,13 @@ async function irParaPagamento() {
   `;
 
   const modoEntrada = await dbGetConfig("pixEntrada", getCfgLocal("pixEntrada", "opcao"));
+  const pixOpcoes   = document.getElementById("pix-opcoes");
 
-  const pixOpcoes = document.getElementById("pix-opcoes");
   pagamentoSelecionado = null;
-  document.getElementById("pix-info").style.display     = "none";
-  // usa classe para ocultar, preservando display:flex quando visível
-  const btnPaguei = document.getElementById("btn-ja-paguei");
-  btnPaguei.classList.add("btn-paguei-oculto");
-  btnPaguei.classList.remove("btn-paguei-visivel");
+  document.getElementById("pix-info").style.display = "none";
+  esconderBtnPaguei();
 
-  if (modoEntrada === "0") {
-    await confirmarSemPagamento();
-    return;
-  }
+  if (modoEntrada === "0") { await confirmarSemPagamento(); return; }
 
   if (modoEntrada === "opcao") {
     const metade = preco ? (preco / 2).toFixed(2) : null;
@@ -243,38 +288,53 @@ async function irParaPagamento() {
 }
 
 // ═══════════════════════════════════════════════
-//  CONTAGEM REGRESSIVA — 30 min para pagar
+//  HELPERS BOTÃO JÁ PAGUEI
+// ═══════════════════════════════════════════════
+function mostrarBtnPaguei() {
+  const btn = document.getElementById("btn-ja-paguei");
+  if (!btn) return;
+  btn.classList.remove("btn-oculto");
+  btn.classList.add("btn-visivel");
+}
+function esconderBtnPaguei() {
+  const btn = document.getElementById("btn-ja-paguei");
+  if (!btn) return;
+  btn.classList.add("btn-oculto");
+  btn.classList.remove("btn-visivel");
+}
+
+// ═══════════════════════════════════════════════
+//  CONTAGEM REGRESSIVA
 // ═══════════════════════════════════════════════
 function iniciarContagemRegressiva(reservadoAte) {
   if (contagemRegressiva) clearInterval(contagemRegressiva);
   const expira = new Date(reservadoAte).getTime();
-
-  // torna o timer visível
-  const el = document.getElementById("timer-reserva");
-  if (el) el.style.display = "block";
+  const timerEl = document.getElementById("timer-reserva");
+  if (timerEl) timerEl.style.display = "block";
 
   function atualizar() {
-    const restante = expira - Date.now();
     const el = document.getElementById("timer-reserva");
     if (!el) return;
+    const restante = expira - Date.now();
 
     if (restante <= 0) {
       clearInterval(contagemRegressiva);
       el.innerHTML = `⏰ Reserva expirada! O horário foi liberado. <a href="agendamento.html" style="color:#e38f7a;font-weight:600">Tente novamente</a>`;
-      el.style.background = "rgba(255,100,100,0.2)";
+      el.style.background = "rgba(255,100,100,0.18)";
+      el.style.borderColor = "rgba(255,100,100,0.35)";
       el.style.color = "#7a0000";
       if (dadosAgendamento.id) dbAtualizarStatus(dadosAgendamento.id, "expirado");
-      const btnP = document.getElementById("btn-ja-paguei");
-      if (btnP) { btnP.classList.add("btn-paguei-oculto"); btnP.classList.remove("btn-paguei-visivel"); }
+      esconderBtnPaguei();
       return;
     }
 
-    const min = Math.floor(restante / 60000);
-    const seg = Math.floor((restante % 60000) / 1000);
+    const min     = Math.floor(restante / 60000);
+    const seg     = Math.floor((restante % 60000) / 1000);
     const urgente = restante < 5 * 60 * 1000;
     el.innerHTML  = `${urgente ? "🔴" : "⏳"} Horário reservado por <strong>${min}:${String(seg).padStart(2,"0")}</strong> — pague para confirmar`;
-    el.style.background = urgente ? "rgba(255,150,50,0.25)" : "rgba(240,192,96,0.2)";
-    el.style.color = urgente ? "#7a3300" : "#7a5700";
+    el.style.background   = urgente ? "rgba(255,150,50,0.22)" : "rgba(240,192,96,0.18)";
+    el.style.borderColor  = urgente ? "rgba(255,150,50,0.4)"  : "rgba(240,192,96,0.38)";
+    el.style.color        = urgente ? "#7a3300" : "#7a5700";
   }
 
   atualizar();
@@ -299,10 +359,7 @@ async function selecionarPagamento(opcao) {
   document.getElementById("pix-nome-display").textContent  = pixNome;
   document.getElementById("pix-valor-display").textContent = valorPix ? `R$ ${valorPix.toFixed(2)}` : "—";
   document.getElementById("pix-chave-display").textContent = pixChave;
-  // mostra botão preservando display:flex
-  const btnPaguei = document.getElementById("btn-ja-paguei");
-  btnPaguei.classList.remove("btn-paguei-oculto");
-  btnPaguei.classList.add("btn-paguei-visivel");
+  mostrarBtnPaguei();
 }
 
 function copiarChave() {
@@ -315,7 +372,7 @@ function copiarChave() {
 }
 
 // ═══════════════════════════════════════════════
-//  "JÁ PAGUEI" — envia comprovante pelo WhatsApp
+//  JÁ PAGUEI
 // ═══════════════════════════════════════════════
 async function finalizarAgendamento() {
   if (!pagamentoSelecionado) { alert("Selecione uma opção de pagamento."); return; }
@@ -328,27 +385,26 @@ async function finalizarAgendamento() {
 
 async function enviarComprovanteWhatsapp(modoPag, valorPago) {
   const { id, nome, servico, preco, data, hora } = dadosAgendamento;
-  const telefone  = normalizarTel(dadosAgendamento.telefone);
   const dataFmt   = data.split("-").reverse().join("/");
   const numeroWpp = normalizarTel(await dbGetConfig("whatsapp", getCfgLocal("whatsapp", "5582996692302")));
   const pixChave  = await dbGetConfig("pixChave", getCfgLocal("pixChave", "yaranadiele@gmail.com"));
 
-  // muda status para aguardando_confirmacao
+  // atualiza status no banco
   if (id) {
-    await sb.from("agendamentos").update({
-      status:    "aguardando_confirmacao",
-      pagamento: modoPag,
-      pix_valor: valorPago
+    const { error: errUpdate } = await sb.from("agendamentos").update({
+      status: "aguardando_confirmacao", pagamento: modoPag, pix_valor: valorPago
     }).eq("id", id);
-
-    // salva no histórico de pagamentos
+    if (errUpdate) {
+      await sb.from("agendamentos").update({
+        status: "aguardando_confirmacao", pagamento: modoPag
+      }).eq("id", id);
+    }
     await sb.from("pagamentos").upsert([{
-      agendamento_id: id,
-      valor:          valorPago,
-      status:         "aguardando_confirmacao",
-      descricao:      `${servico} - ${dataFmt} às ${hora}`,
-      criado_em:      new Date().toISOString()
-    }], { onConflict: "agendamento_id" }).catch(e => console.warn("pagamentos upsert:", e));
+      agendamento_id: id, valor: valorPago,
+      status: "aguardando_confirmacao",
+      descricao: `${servico} - ${dataFmt} às ${hora}`,
+      criado_em: new Date().toISOString()
+    }], { onConflict: "agendamento_id" }).catch(e => console.warn("pagamentos:", e));
   }
 
   let linhaPag = "";
@@ -360,13 +416,12 @@ async function enviarComprovanteWhatsapp(modoPag, valorPago) {
     linhaPag = `\n💰 Pix enviado: R$ ${valorPago.toFixed(2)} (entrada 30% — restante no dia)`;
 
   const mensagem =
-    `Olá Patricia! 👋 Fiz o agendamento e acabei de enviar o Pix.\n\n` +
+    `Olá Patricia! 👋 Fiz o agendamento e enviei o Pix.\n\n` +
     `👤 Nome: ${nome}\n💅 Serviço: ${servico}\n📅 Data: ${dataFmt}\n🕐 Hora: ${hora}` +
     linhaPag +
-    `\n📲 Chave Pix usada: ${pixChave}` +
-    `\n\n📎 Segue o comprovante 👇`;
+    `\n📲 Chave Pix: ${pixChave}\n\n📎 Segue o comprovante 👇`;
 
-  // abre WhatsApp ANTES do await
+  // abre WhatsApp ANTES do await (evita popup blocker)
   window.open(`https://wa.me/${numeroWpp}?text=${encodeURIComponent(mensagem)}`, "_blank");
 
   if (contagemRegressiva) clearInterval(contagemRegressiva);
@@ -381,20 +436,15 @@ async function enviarComprovanteWhatsapp(modoPag, valorPago) {
   document.getElementById("btn-voltar-inicio").style.display = "none";
 }
 
-// ── Sem pagamento exigido ────────────────────
 async function confirmarSemPagamento() {
   const { id, nome, servico, data, hora } = dadosAgendamento;
   const dataFmt   = data.split("-").reverse().join("/");
   const numeroWpp = normalizarTel(await dbGetConfig("whatsapp", getCfgLocal("whatsapp", "5582996692302")));
-
   if (id) await dbAtualizarStatus(id, "pendente");
-
   const mensagem =
     `Olá Patricia! Gostaria de confirmar meu agendamento:\n\n` +
     `👤 Nome: ${nome}\n💅 Serviço: ${servico}\n📅 Data: ${dataFmt}\n🕐 Hora: ${hora}`;
-
   window.open(`https://wa.me/${numeroWpp}?text=${encodeURIComponent(mensagem)}`, "_blank");
-
   document.getElementById("sucesso-texto").textContent =
     `Agendamento enviado para Patricia! 😊\n\n${servico} — ${dataFmt} às ${hora}`;
   irParaTela(3);
@@ -421,7 +471,6 @@ function irParaTela(n) {
 }
 
 function voltarEtapa1() {
-  // libera a reserva se o cliente desistir
   if (dadosAgendamento.id) {
     dbAtualizarStatus(dadosAgendamento.id, "cancelado");
     dadosAgendamento = {};
