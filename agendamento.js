@@ -62,94 +62,58 @@ async function carregarServicos() {
   ).join("");
 }
 
-// ─── Horários — Grade Visual ─────────────────
+// ─── Horários ────────────────────────────────
 async function carregarHorarios() {
   const dataSel    = document.getElementById("data")?.value || "";
-  const grade      = document.getElementById("horarios-grade");
-  const horaHidden = document.getElementById("hora");
-  if (!grade) return;
-
-  if (!dataSel) {
-    grade.innerHTML = '<div class="aviso-sem-data">Selecione uma data para ver os horários 📅</div>';
-    if (horaHidden) horaHidden.value = "";
-    return;
-  }
-
-  grade.innerHTML = '<div class="aviso-sem-data" style="opacity:.6">Carregando horários...</div>';
+  const horaSelect = document.getElementById("hora");
+  if (!horaSelect) return;
 
   const horariosAtivos  = await dbGetConfig("horariosAtivos",  getCfgLocal("horariosAtivos",  ["09:00","10:00","11:00","13:00","14:00","15:00"]));
   const datasBloqueadas = await dbGetConfig("datasBloqueadas", getCfgLocal("datasBloqueadas", []));
 
-  if (datasBloqueadas.includes(dataSel)) {
-    grade.innerHTML = '<div class="aviso-sem-data">❌ Esta data está indisponível</div>';
-    if (horaHidden) horaHidden.value = "";
+  if (dataSel && datasBloqueadas.includes(dataSel)) {
+    horaSelect.innerHTML = '<option disabled selected>Esta data está indisponível</option>';
     return;
   }
 
   const agora = new Date();
   const hoje  = agora.toISOString().split("T")[0];
 
-  // busca horários ocupados — fallback se colunas novas não existirem
-  let rows = [];
-  const { data, error } = await sb.from("agendamentos")
-    .select("hora, data, status, reservado_ate")
-    .eq("data", dataSel)
-    .neq("status", "cancelado")
-    .neq("status", "expirado");
-
-  if (error) {
-    const { data: data2 } = await sb.from("agendamentos")
-      .select("hora, data, status")
+  let ocupados = [];
+  if (dataSel) {
+    const { data } = await sb.from("agendamentos")
+      .select("hora, data, status, reservado_ate")
       .eq("data", dataSel)
-      .neq("status", "cancelado");
-    rows = data2 || [];
-  } else {
-    rows = data || [];
+      .neq("status", "cancelado")
+      .neq("status", "expirado");
+
+    ocupados = (data || []).filter(r => {
+      const dataHora = new Date(`${r.data}T${r.hora}:00`);
+      if (dataHora < agora) return false; // horário já ocorreu = livre
+
+      // reserva temporária: só bloqueia se ainda não expirou
+      if (r.status === "reservado" && r.reservado_ate) {
+        return new Date(r.reservado_ate) > agora;
+      }
+      return true; // confirmado / pendente / aguardando = bloqueado
+    }).map(r => r.hora);
   }
 
-  const ocupados = rows.filter(r => {
-    const dataHora = new Date(`${r.data}T${r.hora}:00`);
-    if (dataHora < agora) return false;
-    if (r.status === "reservado" && r.reservado_ate) {
-      return new Date(r.reservado_ate) > agora;
-    }
-    return true;
-  }).map(r => r.hora);
-
-  const horaSelecionada = horaHidden?.value || "";
-
-  grade.innerHTML = horariosAtivos.map(h => {
+  const opcoes = horariosAtivos.map(h => {
     const jaPassou = dataSel === hoje && new Date(`${dataSel}T${h}:00`) < agora;
     const ocupado  = ocupados.includes(h);
-    let classe = "disponivel", tag = "Disponível", disabled = "";
-    if (jaPassou)      { classe = "encerrado"; tag = "Encerrado"; disabled = "disabled"; }
-    else if (ocupado)  { classe = "ocupado";   tag = "Ocupado";   disabled = "disabled"; }
-    const sel = (!jaPassou && !ocupado && h === horaSelecionada) ? " selecionado" : "";
-    return `<button type="button" class="horario-btn ${classe}${sel}" ${disabled}
-      onclick="${disabled ? "" : `selecionarHorario('${h}')`}">
-      <span class="h-hora">${h}</span>
-      <span class="h-tag">${tag}</span>
-    </button>`;
-  }).join("");
+    if (jaPassou) return `<option value="${h}" disabled>${h} (encerrado)</option>`;
+    if (ocupado)  return `<option value="${h}" disabled>${h} (ocupado)</option>`;
+    return `<option value="${h}">${h}</option>`;
+  });
 
-  // auto-seleciona o primeiro disponível
-  if (!horaSelecionada || !horariosAtivos.find(h => h === horaSelecionada && !ocupados.includes(h))) {
-    const primeiro = horariosAtivos.find(h => {
-      const jaPassou = dataSel === hoje && new Date(`${dataSel}T${h}:00`) < agora;
-      return !jaPassou && !ocupados.includes(h);
-    });
-    if (primeiro) selecionarHorario(primeiro);
-    else if (horaHidden) horaHidden.value = "";
-  }
-}
+  horaSelect.innerHTML = opcoes.join("");
 
-function selecionarHorario(h) {
-  const horaHidden = document.getElementById("hora");
-  if (horaHidden) horaHidden.value = h;
-  document.querySelectorAll(".horario-btn.disponivel").forEach(btn => btn.classList.remove("selecionado"));
-  const btnSel = [...document.querySelectorAll(".horario-btn.disponivel")]
-    .find(btn => btn.querySelector(".h-hora")?.textContent.trim() === h);
-  if (btnSel) btnSel.classList.add("selecionado");
+  const primeiroDisponivel = horariosAtivos.find(h => {
+    const jaPassou = dataSel === hoje && new Date(`${dataSel}T${h}:00`) < agora;
+    return !jaPassou && !ocupados.includes(h);
+  });
+  if (primeiroDisponivel) horaSelect.value = primeiroDisponivel;
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -167,14 +131,10 @@ async function irParaPagamento() {
   const servico   = servicoEl.value;
   const preco     = parseFloat(servicoEl.selectedOptions[0]?.dataset.preco || 0);
   const data      = document.getElementById("data").value;
-  const hora      = document.getElementById("hora").value; // campo hidden preenchido pela grade
+  const hora      = document.getElementById("hora").value;
 
   if (!nome || !telefone || !data || !hora) {
-    if (!hora && data) {
-      alert("Selecione um horário disponível antes de continuar.");
-    } else {
-      alert("Preencha todos os campos antes de continuar.");
-    }
+    alert("Preencha todos os campos antes de continuar.");
     return;
   }
 
@@ -227,7 +187,10 @@ async function irParaPagamento() {
   const pixOpcoes = document.getElementById("pix-opcoes");
   pagamentoSelecionado = null;
   document.getElementById("pix-info").style.display     = "none";
-  document.getElementById("btn-ja-paguei").style.display = "none";
+  // usa classe para ocultar, preservando display:flex quando visível
+  const btnPaguei = document.getElementById("btn-ja-paguei");
+  btnPaguei.classList.add("btn-paguei-oculto");
+  btnPaguei.classList.remove("btn-paguei-visivel");
 
   if (modoEntrada === "0") {
     await confirmarSemPagamento();
@@ -301,7 +264,8 @@ function iniciarContagemRegressiva(reservadoAte) {
       el.style.background = "rgba(255,100,100,0.2)";
       el.style.color = "#7a0000";
       if (dadosAgendamento.id) dbAtualizarStatus(dadosAgendamento.id, "expirado");
-      document.getElementById("btn-ja-paguei").style.display = "none";
+      const btnP = document.getElementById("btn-ja-paguei");
+      if (btnP) { btnP.classList.add("btn-paguei-oculto"); btnP.classList.remove("btn-paguei-visivel"); }
       return;
     }
 
@@ -335,7 +299,10 @@ async function selecionarPagamento(opcao) {
   document.getElementById("pix-nome-display").textContent  = pixNome;
   document.getElementById("pix-valor-display").textContent = valorPix ? `R$ ${valorPix.toFixed(2)}` : "—";
   document.getElementById("pix-chave-display").textContent = pixChave;
-  document.getElementById("btn-ja-paguei").style.display   = "block";
+  // mostra botão preservando display:flex
+  const btnPaguei = document.getElementById("btn-ja-paguei");
+  btnPaguei.classList.remove("btn-paguei-oculto");
+  btnPaguei.classList.add("btn-paguei-visivel");
 }
 
 function copiarChave() {
