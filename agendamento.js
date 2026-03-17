@@ -1,3 +1,21 @@
+// Normaliza número de telefone para o formato internacional brasileiro (55 + DDD + número)
+function normalizarTel(tel) {
+  let t = (tel || "").replace(/\D/g, ""); // remove tudo que não é número
+  if (!t) return "";
+
+  // Já está completo com código do país: 55 + DDD(2) + número(8 ou 9) = 12 ou 13 dígitos
+  if (t.startsWith("55") && (t.length === 12 || t.length === 13)) return t;
+
+  // Tem DDD + número sem o 55: 10 ou 11 dígitos → adiciona 55
+  if (t.length === 10 || t.length === 11) return "55" + t;
+
+  // Só o número sem DDD: 8 ou 9 dígitos → adiciona 55 + DDD padrão 82 (Alagoas)
+  if (t.length === 8 || t.length === 9) return "5582" + t;
+
+  // Qualquer outro caso: tenta adicionar 55
+  return "55" + t;
+}
+
 // ═══════════════════════════════════════════════
 //  ESTADO GLOBAL
 // ═══════════════════════════════════════════════
@@ -230,10 +248,13 @@ async function finalizarAgendamento() {
 }
 
 async function salvarEEnviarWhatsapp(modoPag, valorPago) {
-  const { nome, telefone, servico, preco, data, hora } = dadosAgendamento;
+  const { nome, servico, preco, data, hora } = dadosAgendamento;
+  // normaliza o telefone do cliente para salvar limpo no banco
+  const telefone = normalizarTel(dadosAgendamento.telefone);
 
   const dataFmt   = data.split("-").reverse().join("/");
-  const numeroWpp = await dbGetConfig("whatsapp", getCfgLocal("whatsapp", "5582996692302"));
+  const numeroWppRaw = await dbGetConfig("whatsapp", getCfgLocal("whatsapp", "5582996692302"));
+  const numeroWpp = normalizarTel(numeroWppRaw);
 
   let linhaPagamento = "";
   if (modoPag === "total" && valorPago > 0)

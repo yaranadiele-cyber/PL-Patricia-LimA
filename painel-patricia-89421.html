@@ -89,7 +89,7 @@
 .sv-admin-campos .row{display:flex;gap:8px}
 .sv-admin-campos .row input{flex:1}
 .sv-admin-campos .row input[type=number]{max-width:100px}
-.zbtn-remover-sv{background:#ff7b7b;color:white;border:none;padding:7px 14px;border-radius:12px;font-size:12px;font-family:Poppins,sans-serif;cursor:pointer;align-self:flex-end;transition:.2s}
+.btn-remover-sv{background:#ff7b7b;color:white;border:none;padding:7px 14px;border-radius:12px;font-size:12px;font-family:Poppins,sans-serif;cursor:pointer;align-self:flex-end;transition:.2s}
 .btn-remover-sv:hover{filter:brightness(1.1)}
 @media(max-width:500px){.sv-admin-card{grid-template-columns:1fr}.sv-admin-foto-wrap{flex-direction:row;align-items:center}.sv-admin-foto-wrap img{width:70px;height:70px}}
 /* ─── FOTOS ─── */
@@ -816,13 +816,31 @@ async function renderAgendamentosDB() {
 renderAgendamentos = function() { renderAgendamentosDB(); };
 renderStats        = function() {};  // incluído no renderAgendamentosDB
 
+// Normaliza número de telefone para o formato internacional brasileiro (55 + DDD + número)
+function normalizarTel(tel) {
+  let t = (tel || "").replace(/\D/g, ""); // remove tudo que não é número
+  if (!t) return "";
+
+  // Já está completo com código do país: 55 + DDD(2) + número(8 ou 9) = 12 ou 13 dígitos
+  if (t.startsWith("55") && (t.length === 12 || t.length === 13)) return t;
+
+  // Tem DDD + número sem o 55: 10 ou 11 dígitos → adiciona 55
+  if (t.length === 10 || t.length === 11) return "55" + t;
+
+  // Só o número sem DDD: 8 ou 9 dígitos → adiciona 55 + DDD padrão 82 (Alagoas)
+  if (t.length === 8 || t.length === 9) return "5582" + t;
+
+  // Qualquer outro caso: tenta adicionar 55 e torcer
+  return "55" + t;
+}
+
 async function confirmarDB(id, nome, servico, data, hora, tel) {
   // Abre o WhatsApp ANTES do await para não ser bloqueado pelo navegador
   const msg = (getCfg("msgConfirmacao") || "Olá {nome}! Seu agendamento foi CONFIRMADO.\n\nServiço: {servico}\nData: {data}\nHora: {hora}\n\nPatricia Lima 💅")
     .replace("{nome}", nome).replace("{servico}", servico)
     .replace("{data}", fmtData(data)).replace("{hora}", hora);
-  const t = tel.replace(/\D/g,"");
-  if (t) window.open(`https://wa.me/55${t}?text=${encodeURIComponent(msg)}`, "_blank");
+  const t = normalizarTel(tel);
+  if (t) window.open(`https://wa.me/${t}?text=${encodeURIComponent(msg)}`, "_blank");
   await dbAtualizarStatus(id, "confirmado");
   toast("Agendamento confirmado!");
   renderAgendamentosDB();
@@ -832,8 +850,8 @@ async function cancelarDB(id, nome, servico, data, hora, tel) {
   const msg = (getCfg("msgCancelamento") || "Olá {nome}. Infelizmente seu agendamento foi CANCELADO.\n\nServiço: {servico}\nData: {data}\nHora: {hora}\n\nEntre em contato para reagendar.")
     .replace("{nome}", nome).replace("{servico}", servico)
     .replace("{data}", fmtData(data)).replace("{hora}", hora);
-  const t = tel.replace(/\D/g,"");
-  if (t) window.open(`https://wa.me/55${t}?text=${encodeURIComponent(msg)}`, "_blank");
+  const t = normalizarTel(tel);
+  if (t) window.open(`https://wa.me/${t}?text=${encodeURIComponent(msg)}`, "_blank");
   await dbDeletarAgendamento(id);
   toast("Agendamento cancelado.", true);
   renderAgendamentosDB();
