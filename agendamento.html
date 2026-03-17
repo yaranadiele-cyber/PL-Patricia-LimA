@@ -7,7 +7,46 @@
 <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <style>
-/* ─── ETAPAS ─── */
+/* ─── CAMPO DATA DESTAQUE ─── */
+.data-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.data-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b4a3f;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  padding-left: 4px;
+}
+.data-input-destaque {
+  padding: 14px 16px !important;
+  border: 2px solid #e38f7a !important;
+  border-radius: 14px !important;
+  font-size: 15px !important;
+  font-family: Poppins, sans-serif !important;
+  background: rgba(255,255,255,0.85) !important;
+  color: #3f2922 !important;
+  outline: none !important;
+  width: 100%;
+  box-shadow: 0 4px 14px rgba(227,143,122,0.25);
+  cursor: pointer;
+  transition: 0.2s;
+}
+.data-input-destaque:focus {
+  border-color: #c97060 !important;
+  background: white !important;
+  box-shadow: 0 4px 18px rgba(227,143,122,0.4);
+}
+/* ícone calendário no campo de data */
+.data-input-destaque::-webkit-calendar-picker-indicator {
+  font-size: 18px;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
 .etapas {
   display: flex;
   justify-content: center;
@@ -264,7 +303,10 @@
       <input  type="text" id="nome"      placeholder="Seu nome completo">
       <input  type="tel"  id="telefone"  placeholder="Seu WhatsApp">
       <select id="servico"></select>
-      <input  type="date" id="data">
+      <div class="data-wrapper">
+        <span class="data-label">📅 Escolha a data</span>
+        <input type="date" id="data" class="data-input-destaque">
+      </div>
       <select id="hora"></select>
       <button class="botao" onclick="irParaPagamento()" style="cursor:pointer">
         Continuar →

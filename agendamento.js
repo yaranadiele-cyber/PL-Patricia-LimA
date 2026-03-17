@@ -232,13 +232,6 @@ async function finalizarAgendamento() {
 async function salvarEEnviarWhatsapp(modoPag, valorPago) {
   const { nome, telefone, servico, preco, data, hora } = dadosAgendamento;
 
-  // salva no Supabase
-  const ag = await dbSalvarAgendamento({ nome, telefone, servico, preco, data, hora, status: "pendente", pagamento: modoPag });
-  if (!ag) {
-    alert("Erro ao salvar agendamento. Tente novamente.");
-    return;
-  }
-
   const dataFmt   = data.split("-").reverse().join("/");
   const numeroWpp = await dbGetConfig("whatsapp", getCfgLocal("whatsapp", "5582996692302"));
 
@@ -255,7 +248,14 @@ async function salvarEEnviarWhatsapp(modoPag, valorPago) {
     `Nome: ${nome}\nServiço: ${servico}\nData: ${dataFmt}\nHora: ${hora}` +
     linhaPagamento;
 
+  // ⚠️ Abre o WhatsApp ANTES do await para não ser bloqueado pelo navegador
   window.open(`https://wa.me/${numeroWpp}?text=${encodeURIComponent(mensagem)}`, "_blank");
+
+  // salva no Supabase depois de abrir o WhatsApp
+  const ag = await dbSalvarAgendamento({ nome, telefone, servico, preco, data, hora, status: "pendente", pagamento: modoPag });
+  if (!ag) {
+    console.warn("Aviso: agendamento pode não ter sido salvo no banco.");
+  }
 
   const txt = `Seu agendamento foi enviado para Patricia pelo WhatsApp! 😊\n\n${servico} — ${dataFmt} às ${hora}` +
     (valorPago > 0 ? `\n\nLembre-se de enviar o comprovante do Pix de R$ ${valorPago.toFixed(2)}.` : "");

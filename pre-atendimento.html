@@ -2,120 +2,120 @@
 <html lang="pt-br">
 
 <head>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Serviços</title>
-
+<title>Pré-Atendimento — Patricia Lima</title>
+<link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
-
+<style>
+.descricao-servico {
+  font-size: 13px;
+  color: #5a3a2e;
+  margin-bottom: 12px;
+  line-height: 1.5;
+  min-height: 0;
+}
+.card-servico img {
+  background: #efe4de;
+}
+</style>
 </head>
 
 <body>
-
 <div class="container">
 
 <div class="logo-area">
-
-<div class="monograma">PL</div>
-
-<h1>Patricia Lima</h1>
-
-<p class="frase">Realçando sua beleza natural</p>
-
+  <div class="monograma">PL</div>
+  <h1>Patricia Lima</h1>
+  <p class="frase" id="frase-site">Realçando sua beleza natural</p>
 </div>
 
-
-<section class="servicos"> 
-
-<div class="card-servico">
-
-<img src="img/simples.jpeg">
-
-<h3>Design de sobrancelha Simples</h3>
-
-<p class="valor">R$ 40,00</p>
-
-<a href="agendamento.html" class="botao-servico">Agendar</a>
-
-</div>
-
-
-<div class="card-servico">
-
-<img src="img/sobrancelha.jpeg">
-
-<h3>Design de sobrancelha com Henna</h3>
-
-<p class="valor">R$ 40,00</p>
-
-<a href="agendamento.html" class="botao-servico">Agendar</a>
-
-</div>
-
-
-<div class="card-servico">
-
-<img src="img/maquiagem2.jpeg">
-
-<h3>Maquiagem</h3>
-
-<p class="valor">R$ 35,00</p>
-
-<a href="agendamento.html" class="botao-servico">Agendar</a>
-
-</div>
-
-
-<div class="card-servico">
-
-<img src="img/penteado.jpeg">
-
-<h3>Penteados</h3>
-
-<p class="valor">R$ 120,00</p>
-
-<a href="agendamento.html" class="botao-servico">Agendar</a>
-
-</div>
-
-
-<div class="card-servico">
-
-<img src="img/unhas2.jpeg">
-
-<h3>Desing de Unhas</h3>
-
-<p class="valor">R$ 150,00</p>
-
-<a href="agendamento.html" class="botao-servico">Agendar</a>
-
-</div>
-
+<!-- Serviços carregados dinamicamente do painel admin -->
+<section class="servicos" id="lista-servicos">
+  <p style="color:#6b4a3f;font-size:15px;grid-column:1/-1;padding:20px;text-align:center">
+    ⏳ Carregando serviços...
+  </p>
 </section>
 
 <div class="botao-voltar">
-
-<a href="index.html" class="botao">
-🏠 Voltar para início
-</a>
-
+  <a href="index.html" class="botao">🏠 Voltar para início</a>
 </div>
-
 
 <footer>
-
-<div class="rodape-box">
-
-<p>© 2026 Patricia Lima</p>
-<p>Site desenvolvido por <b>Nadiele Iara</b></p>
-
-</div>
-
+  <div class="rodape-box">
+    <p>© 2026 Patricia Lima</p>
+    <p>Site desenvolvido por <b>Nadiele Iara</b></p>
+  </div>
 </footer>
 
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase.js"></script>
+<script>
+// Serviços padrão (usados se o banco ainda não tiver dados)
+const SERVICOS_PADRAO = [
+  { nome: "Design de sobrancelha Simples",   preco: 40,  descricao: "", foto: "img/simples.jpeg"     },
+  { nome: "Design de sobrancelha com Henna", preco: 40,  descricao: "", foto: "img/sobrancelha.jpeg" },
+  { nome: "Maquiagem",                       preco: 35,  descricao: "", foto: "img/maquiagem2.jpeg"  },
+  { nome: "Penteados",                       preco: 120, descricao: "", foto: "img/penteado.jpeg"    },
+  { nome: "Design de Unhas",                 preco: 150, descricao: "", foto: "img/unhas2.jpeg"      }
+];
+
+function getCfgLocal(key, fallback) {
+  const raw = localStorage.getItem("cfg_" + key);
+  return raw !== null ? JSON.parse(raw) : fallback;
+}
+
+window.onload = async function() {
+  // Carrega frase do site
+  const frase = await dbGetConfig("frase", getCfgLocal("frase", "Realçando sua beleza natural"));
+  const fraseEl = document.getElementById("frase-site");
+  if (fraseEl && frase) fraseEl.textContent = frase;
+
+  // Carrega serviços completos (com foto + descrição) do banco
+  // Tenta primeiro "servicosCompletos" (nova estrutura), depois fallback para estrutura antiga
+  let servicos = await dbGetConfig("servicosCompletos", null);
+
+  if (!servicos || !servicos.length) {
+    // fallback: tenta estrutura antiga
+    const svAntigo = await dbGetConfig("servicos", getCfgLocal("servicos", null));
+    const fotosAntigo = await dbGetConfig("servicosFotos", getCfgLocal("servicosFotos", null));
+    if (svAntigo && svAntigo.length) {
+      servicos = svAntigo.map((s, i) => ({
+        nome:      s.nome  || "",
+        preco:     s.preco || 0,
+        descricao: s.descricao || "",
+        foto:      (fotosAntigo && fotosAntigo[i]) ? fotosAntigo[i]
+                   : (SERVICOS_PADRAO[i] ? SERVICOS_PADRAO[i].foto : "")
+      }));
+    } else {
+      servicos = SERVICOS_PADRAO;
+    }
+  }
+
+  const lista = document.getElementById("lista-servicos");
+
+  if (!servicos.length) {
+    lista.innerHTML = '<p style="color:#6b4a3f;font-size:15px;grid-column:1/-1;text-align:center">Nenhum serviço cadastrado no momento.</p>';
+    return;
+  }
+
+  lista.innerHTML = servicos.map(s => {
+    const imgSrc = s.foto || "https://via.placeholder.com/260x220/efe4de/6b4a3f?text=" + encodeURIComponent(s.nome || "Serviço");
+    const preco  = s.preco ? `R$ ${Number(s.preco).toFixed(2)}` : "";
+    return `
+      <div class="card-servico">
+        <img src="${imgSrc}"
+             onerror="this.src='https://via.placeholder.com/260x220/efe4de/6b4a3f?text=${encodeURIComponent(s.nome || "Serviço")}'">
+        <h3>${s.nome || "Serviço"}</h3>
+        ${s.descricao ? `<p class="descricao-servico">${s.descricao}</p>` : ""}
+        ${preco ? `<p class="valor">${preco}</p>` : ""}
+        <a href="agendamento.html" class="botao-servico">Agendar</a>
+      </div>`;
+  }).join("");
+};
+</script>
 
 </body>
 </html>

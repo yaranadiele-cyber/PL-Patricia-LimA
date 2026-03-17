@@ -75,6 +75,23 @@
 .login-box input:focus{background:rgba(255,255,255,.95);box-shadow:0 0 0 2px rgba(227,143,122,.4)}
 .login-erro{color:#7a0000;font-size:13px;margin-bottom:8px;display:none}
 @media(max-width:600px){.aba{font-size:12px;padding:10px 10px}}
+/* ─── CARD SERVIÇO ADMIN ─── */
+.sv-admin-card{background:rgba(255,255,255,.4);border-radius:20px;padding:18px;margin-bottom:16px;box-shadow:0 4px 14px rgba(0,0,0,.1);display:grid;grid-template-columns:110px 1fr;gap:14px;align-items:start}
+.sv-admin-foto-wrap{display:flex;flex-direction:column;align-items:center;gap:8px}
+.sv-admin-foto-wrap img{width:100px;height:100px;object-fit:cover;border-radius:14px;border:3px solid #e38f7a;background:#efe4de}
+.sv-admin-foto-btns{display:flex;flex-direction:column;gap:5px;width:100%}
+.sv-admin-foto-btns label,.sv-admin-foto-btns button{font-size:11px;padding:5px 8px;border-radius:10px;cursor:pointer;text-align:center;transition:.2s;font-family:Poppins,sans-serif}
+.sv-admin-foto-btns label{background:#e38f7a;color:white;border:none;display:block}
+.sv-admin-foto-btns label:hover{filter:brightness(1.1)}
+.sv-admin-campos{display:flex;flex-direction:column;gap:8px}
+.sv-admin-campos input,.sv-admin-campos textarea{padding:9px 12px;border:none;border-radius:12px;font-size:13px;font-family:Poppins,sans-serif;background:rgba(255,255,255,.8);color:#3f2922;outline:none}
+.sv-admin-campos textarea{resize:vertical;min-height:56px}
+.sv-admin-campos .row{display:flex;gap:8px}
+.sv-admin-campos .row input{flex:1}
+.sv-admin-campos .row input[type=number]{max-width:100px}
+.zbtn-remover-sv{background:#ff7b7b;color:white;border:none;padding:7px 14px;border-radius:12px;font-size:12px;font-family:Poppins,sans-serif;cursor:pointer;align-self:flex-end;transition:.2s}
+.btn-remover-sv:hover{filter:brightness(1.1)}
+@media(max-width:500px){.sv-admin-card{grid-template-columns:1fr}.sv-admin-foto-wrap{flex-direction:row;align-items:center}.sv-admin-foto-wrap img{width:70px;height:70px}}
 /* ─── FOTOS ─── */
 .foto-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;margin-bottom:12px}
 .foto-card{position:relative;border-radius:14px;overflow:hidden;aspect-ratio:1;box-shadow:0 4px 12px rgba(0,0,0,.15)}
@@ -115,6 +132,7 @@
     <button class="aba"       onclick="mudarAba('servicos',this)">💅 Serviços</button>
     <button class="aba"       onclick="mudarAba('horarios',this)">🕐 Horários</button>
     <button class="aba"       onclick="mudarAba('fotos',this)">🖼️ Fotos</button>
+    <button class="aba"       onclick="mudarAba('quemsou',this)">👤 Quem sou</button>
   </div>
 
   <!-- ─── ABA AGENDAMENTOS ─── -->
@@ -195,11 +213,11 @@
   <div id="sec-servicos" class="secao">
     <div class="card-painel">
       <h3>Meus Serviços</h3>
-      <p style="font-size:13px;color:#6b4a3f;margin-bottom:16px">Edite nomes e preços. Os serviços salvos aqui aparecem no agendamento automaticamente.</p>
-      <div id="lista-servicos"></div>
-      <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
-        <button class="btn-secundario" onclick="adicionarServico()">+ Adicionar serviço</button>
-        <button class="btn-salvar" style="flex:1" onclick="salvarServicos()">💾 Salvar serviços</button>
+      <p style="font-size:13px;color:#6b4a3f;margin-bottom:16px">Tudo que você editar aqui aparece automaticamente na página de Pré-Atendimento e no agendamento — sem precisar tocar no código.</p>
+      <div id="lista-servicos-admin"></div>
+      <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+        <button class="btn-secundario" onclick="adicionarServico()">+ Novo serviço</button>
+        <button class="btn-salvar" style="flex:1" onclick="salvarServicos()">💾 Salvar todos os serviços</button>
       </div>
     </div>
   </div>
@@ -248,6 +266,30 @@
         <input type="url" id="input-url-foto" placeholder="https://...">
       </div>
       <button class="btn-salvar" onclick="adicionarFotoURL()">&#10133; Adicionar foto por link</button>
+    </div>
+  </div>
+
+  <!-- ─── ABA QUEM SOU ─── -->
+  <div id="sec-quemsou" class="secao">
+    <div class="card-painel">
+      <h3>Quem Sou</h3>
+      <p style="font-size:13px;color:#6b4a3f;margin-bottom:16px">Edite o texto e a foto de perfil que aparecem na página "Quem sou".</p>
+      <div class="campo-admin">
+        <label>Foto de perfil (URL da imagem)</label>
+        <input type="url" id="qs-foto" placeholder="https://... ou caminho local como img/patricia.jpeg">
+      </div>
+      <div class="campo-admin">
+        <label>Título da seção</label>
+        <input type="text" id="qs-titulo" placeholder="Ex: Quem Sou">
+      </div>
+      <div class="campo-admin">
+        <label>Texto de apresentação</label>
+        <textarea id="qs-texto" rows="7" placeholder="Conte um pouco sobre você..."></textarea>
+      </div>
+      <div style="margin-top:8px">
+        <img id="qs-preview" src="" alt="preview" style="width:120px;height:120px;border-radius:50%;object-fit:cover;border:4px solid #e38f7a;display:none;margin-bottom:12px">
+      </div>
+      <button class="btn-salvar" onclick="salvarQuemSou()">💾 Salvar "Quem sou"</button>
     </div>
   </div>
 
@@ -333,7 +375,7 @@ function iniciar(){
   renderStats();renderAgendamentos();
   carregarCfg();renderServicos();
   renderGrade();renderDatasBloqueadas();
-  renderFotos();
+  renderFotos();carregarQuemSou();
 }
 
 // ═══════════════════════════════════════════════
@@ -445,34 +487,110 @@ function salvarConfiguracoes(){
 }
 
 // ═══════════════════════════════════════════════
-//  SERVIÇOS
+//  SERVIÇOS — versão completa com foto/descrição
 // ═══════════════════════════════════════════════
-function renderServicos(){
-  const sv=getCfg("servicos");
-  document.getElementById("lista-servicos").innerHTML=sv.map((s,i)=>`
-    <div class="servico-item">
-      <input type="text"   value="${s.nome}"  placeholder="Nome do serviço"   id="sv-nome-${i}">
-      <input type="number" value="${s.preco}" placeholder="Preço (R$)" min="0" id="sv-preco-${i}">
-      <button class="btn-remover" onclick="removerServico(${i})" title="Remover">×</button>
+// Dados dos serviços agora incluem: nome, preco, descricao, foto (base64 ou url)
+function getServicosCompletos() {
+  return getCfg("servicosCompletos") || getCfg("servicos") || [];
+}
+function setServicosCompletos(arr) {
+  setCfg("servicosCompletos", arr);
+  // mantém compatibilidade com o campo "servicos" e "servicosFotos" usados no agendamento
+  setCfg("servicos", arr.map(s => ({ nome: s.nome, preco: s.preco || 0 })));
+  setCfg("servicosFotos", arr.map(s => s.foto || ""));
+}
+
+function renderServicos() {
+  const sv = getServicosCompletos();
+  const container = document.getElementById("lista-servicos-admin");
+  if (!container) return;
+  if (!sv.length) {
+    container.innerHTML = '<p style="font-size:13px;color:#6b4a3f;opacity:.7;margin-bottom:8px">Nenhum serviço ainda. Clique em "+ Novo serviço" para adicionar.</p>';
+    return;
+  }
+  container.innerHTML = sv.map((s, i) => `
+    <div class="sv-admin-card" id="sv-card-${i}">
+      <div class="sv-admin-foto-wrap">
+        <img id="sv-img-${i}" src="${s.foto || 'https://via.placeholder.com/100x100/efe4de/6b4a3f?text=Foto'}"
+             onerror="this.src='https://via.placeholder.com/100x100/efe4de/6b4a3f?text=Foto'">
+        <div class="sv-admin-foto-btns">
+          <label title="Enviar foto do seu dispositivo">
+            📷 Upload
+            <input type="file" accept="image/*" style="display:none" onchange="uploadFotoServico(${i}, this)">
+          </label>
+        </div>
+      </div>
+      <div class="sv-admin-campos">
+        <div class="row">
+          <input type="text"   id="sv-nome-${i}"  value="${s.nome  || ''}" placeholder="Nome do serviço">
+          <input type="number" id="sv-preco-${i}" value="${s.preco || ''}" placeholder="Preço R$" min="0" step="0.01">
+        </div>
+        <input type="url" id="sv-foto-url-${i}" value="${(s.foto && !s.foto.startsWith('data:')) ? s.foto : ''}"
+               placeholder="Ou cole o link da foto (URL)" oninput="previewFotoUrl(${i})">
+        <textarea id="sv-desc-${i}" placeholder="Descrição do serviço (opcional)">${s.descricao || ''}</textarea>
+        <button class="btn-remover-sv" onclick="removerServico(${i})">🗑️ Remover serviço</button>
+      </div>
     </div>`).join("");
 }
 
-function adicionarServico(){
-  const sv=getCfg("servicos");
-  sv.push({nome:"",preco:0}); setCfg("servicos",sv); renderServicos();
+function previewFotoUrl(i) {
+  const url = document.getElementById(`sv-foto-url-${i}`).value.trim();
+  if (url) document.getElementById(`sv-img-${i}`).src = url;
 }
 
-function removerServico(i){
-  const sv=getCfg("servicos"); sv.splice(i,1); setCfg("servicos",sv); renderServicos(); toast("Serviço removido.");
+function uploadFotoServico(i, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById(`sv-img-${i}`).src = e.target.result;
+    // limpa o campo URL para não conflitar
+    const urlInput = document.getElementById(`sv-foto-url-${i}`);
+    if (urlInput) urlInput.value = "";
+    // guarda temporariamente no card via data
+    document.getElementById(`sv-card-${i}`).dataset.fotoBase64 = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  input.value = "";
 }
 
-function salvarServicos(){
-  const sv=getCfg("servicos");
-  const novos=sv.map((_,i)=>({
-    nome: document.getElementById(`sv-nome-${i}`).value.trim(),
-    preco:parseFloat(document.getElementById(`sv-preco-${i}`).value)||0
-  }));
-  setCfg("servicos",novos); toast("Serviços salvos!");
+function adicionarServico() {
+  const sv = getServicosCompletos();
+  sv.push({ nome: "", preco: 0, descricao: "", foto: "" });
+  setServicosCompletos(sv);
+  renderServicos();
+  // scroll para o novo card
+  setTimeout(() => {
+    const cards = document.querySelectorAll(".sv-admin-card");
+    if (cards.length) cards[cards.length - 1].scrollIntoView({ behavior: "smooth", block: "center" });
+  }, 100);
+}
+
+function removerServico(i) {
+  const sv = getServicosCompletos();
+  sv.splice(i, 1);
+  setServicosCompletos(sv);
+  renderServicos();
+  toast("Serviço removido.");
+}
+
+function salvarServicos() {
+  const sv = getServicosCompletos();
+  const novos = sv.map((_, i) => {
+    const card = document.getElementById(`sv-card-${i}`);
+    const fotoBase64 = card?.dataset.fotoBase64 || "";
+    const fotoUrl    = document.getElementById(`sv-foto-url-${i}`)?.value.trim() || "";
+    // prioridade: upload (base64) > url > foto já existente
+    const foto = fotoBase64 || fotoUrl || _.foto || "";
+    return {
+      nome:      document.getElementById(`sv-nome-${i}`)?.value.trim()  || "",
+      preco:     parseFloat(document.getElementById(`sv-preco-${i}`)?.value) || 0,
+      descricao: document.getElementById(`sv-desc-${i}`)?.value.trim()  || "",
+      foto
+    };
+  });
+  setServicosCompletos(novos);
+  toast("Serviços salvos!");
 }
 
 // ═══════════════════════════════════════════════
@@ -577,6 +695,33 @@ function removerFoto(i){
 function salvarFotos(){
   toast("Fotos do carrossel salvas! Recarregue a página inicial para ver.");
 }
+
+// ═══════════════════════════════════════════════
+//  QUEM SOU
+// ═══════════════════════════════════════════════
+function carregarQuemSou(){
+  const foto   = getCfg("quemSouFoto")  || "img/patricia.jpeg";
+  const titulo = getCfg("quemSouTitulo")|| "Quem Sou";
+  const texto  = getCfg("quemSouTexto") || "";
+  document.getElementById("qs-foto").value   = foto;
+  document.getElementById("qs-titulo").value = titulo;
+  document.getElementById("qs-texto").value  = texto;
+  atualizarPreviewFoto(foto);
+  document.getElementById("qs-foto").addEventListener("input", function(){ atualizarPreviewFoto(this.value); });
+}
+
+function atualizarPreviewFoto(src){
+  const prev = document.getElementById("qs-preview");
+  if(src){ prev.src = src; prev.style.display = "block"; }
+  else   { prev.style.display = "none"; }
+}
+
+function salvarQuemSou(){
+  setCfg("quemSouFoto",   document.getElementById("qs-foto").value.trim());
+  setCfg("quemSouTitulo", document.getElementById("qs-titulo").value.trim());
+  setCfg("quemSouTexto",  document.getElementById("qs-texto").value.trim());
+  toast("Dados de 'Quem sou' salvos!");
+}
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase.js"></script>
@@ -612,6 +757,7 @@ iniciar = async function() {
   renderGrade();
   renderDatasBloqueadas();
   renderFotos();
+  carregarQuemSou();
 };
 
 function mostrarCarregando(sim) {
@@ -671,12 +817,13 @@ renderAgendamentos = function() { renderAgendamentosDB(); };
 renderStats        = function() {};  // incluído no renderAgendamentosDB
 
 async function confirmarDB(id, nome, servico, data, hora, tel) {
-  await dbAtualizarStatus(id, "confirmado");
+  // Abre o WhatsApp ANTES do await para não ser bloqueado pelo navegador
   const msg = (getCfg("msgConfirmacao") || "Olá {nome}! Seu agendamento foi CONFIRMADO.\n\nServiço: {servico}\nData: {data}\nHora: {hora}\n\nPatricia Lima 💅")
     .replace("{nome}", nome).replace("{servico}", servico)
     .replace("{data}", fmtData(data)).replace("{hora}", hora);
   const t = tel.replace(/\D/g,"");
   if (t) window.open(`https://wa.me/55${t}?text=${encodeURIComponent(msg)}`, "_blank");
+  await dbAtualizarStatus(id, "confirmado");
   toast("Agendamento confirmado!");
   renderAgendamentosDB();
 }
@@ -717,14 +864,25 @@ salvarConfiguracoes = async function() {
 // Sobrescreve salvarServicos
 const _salvarSvOriginal = salvarServicos;
 salvarServicos = async function() {
-  const sv = getCfg("servicos");
-  const novos = sv.map((_,i) => ({
-    nome:  document.getElementById(`sv-nome-${i}`).value.trim(),
-    preco: parseFloat(document.getElementById(`sv-preco-${i}`).value)||0
-  }));
-  await dbSetConfig("servicos", novos);
-  setCfg("servicos", novos);
-  toast("Serviços salvos no banco!");
+  const sv = getServicosCompletos();
+  const novos = sv.map((_, i) => {
+    const card = document.getElementById(`sv-card-${i}`);
+    const fotoBase64 = card?.dataset.fotoBase64 || "";
+    const fotoUrl    = document.getElementById(`sv-foto-url-${i}`)?.value.trim() || "";
+    const foto = fotoBase64 || fotoUrl || _.foto || "";
+    return {
+      nome:      document.getElementById(`sv-nome-${i}`)?.value.trim()  || "",
+      preco:     parseFloat(document.getElementById(`sv-preco-${i}`)?.value) || 0,
+      descricao: document.getElementById(`sv-desc-${i}`)?.value.trim()  || "",
+      foto
+    };
+  });
+  await dbSetConfig("servicosCompletos", novos);
+  // compatibilidade com agendamento
+  await dbSetConfig("servicos", novos.map(s => ({ nome: s.nome, preco: s.preco })));
+  await dbSetConfig("servicosFotos", novos.map(s => s.foto || ""));
+  setServicosCompletos(novos);
+  toast("Serviços salvos no banco! ✅");
 };
 
 // Sobrescreve salvarHorarios
@@ -759,6 +917,18 @@ desbloquearData = async function(d) {
   renderDatasBloqueadas();
   toast("Data desbloqueada.");
 };
+// Sobrescreve salvarQuemSou para gravar no banco
+salvarQuemSou = async function() {
+  const foto   = document.getElementById("qs-foto").value.trim();
+  const titulo = document.getElementById("qs-titulo").value.trim();
+  const texto  = document.getElementById("qs-texto").value.trim();
+  await dbSetConfig("quemSouFoto",   foto);
+  await dbSetConfig("quemSouTitulo", titulo);
+  await dbSetConfig("quemSouTexto",  texto);
+  setCfg("quemSouFoto",   foto);
+  setCfg("quemSouTitulo", titulo);
+  setCfg("quemSouTexto",  texto);
+  toast("'Quem sou' salvo no banco!");
+};
 </script>
-</body>
 </html>
