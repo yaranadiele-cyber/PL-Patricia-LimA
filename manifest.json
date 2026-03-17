@@ -22,11 +22,13 @@
   "shortcuts": [
     {
       "name": "Agendar horário",
+      "short_name": "Agendar",
       "url": "./agendamento.html",
       "icons": [{ "src": "./icons/icon-96.png", "sizes": "96x96" }]
     },
     {
       "name": "Painel Admin",
+      "short_name": "Painel",
       "url": "./painel-patricia-89421.html",
       "icons": [{ "src": "./icons/icon-96.png", "sizes": "96x96" }]
     }
