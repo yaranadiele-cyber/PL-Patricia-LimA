@@ -204,6 +204,20 @@
 .sucesso-titulo{font-family:'Great Vibes';font-size:42px;color:#6b4a3f;margin-bottom:10px}
 .sucesso-texto{font-size:14px;color:#3f2922;line-height:1.7;white-space:pre-line}
 
+/* ══ PASSOS PIX ══ */
+.passos-pix{display:flex;flex-direction:column;gap:10px;margin:16px 0 4px;text-align:left}
+.passo-item{display:flex;align-items:flex-start;gap:12px;background:rgba(255,255,255,0.5);border-radius:14px;padding:12px 14px;border:1.5px solid rgba(107,74,63,0.1)}
+.passo-item.passo-destaque{background:rgba(110,203,139,0.15);border-color:rgba(110,203,139,0.45)}
+.passo-num{width:26px;height:26px;border-radius:50%;background:#e38f7a;color:white;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.passo-item.passo-destaque .passo-num{background:#6ecb8b}
+.passo-txt{font-size:13px;color:#3f2922;line-height:1.5}
+
+/* ══ CHECKLIST SUCESSO ══ */
+.checklist-sucesso{display:flex;flex-direction:column;gap:8px;margin:16px 0;text-align:left}
+.check-item{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:14px;font-size:13px;line-height:1.4}
+.check-ok{background:rgba(110,203,139,0.18);color:#1a5e35;border:1.5px solid rgba(110,203,139,0.35)}
+.check-pendente{background:rgba(240,192,96,0.18);color:#7a5700;border:1.5px solid rgba(240,192,96,0.35)}
+
 </style>
 </head>
 <body>
@@ -298,28 +312,52 @@
       <div class="ag-subtitulo">Revise e escolha como pagar</div>
       <div class="ag-divisor"></div>
 
+      <!-- Resumo do agendamento -->
       <div class="resumo-box" id="resumo"></div>
 
-      <p style="font-size:11px;color:#6b4a3f;margin-bottom:12px;font-weight:600;letter-spacing:.4px;text-transform:uppercase">Como deseja pagar?</p>
+      <!-- Timer de reserva -->
+      <div id="timer-reserva"></div>
 
+      <!-- Opções de pagamento -->
+      <p style="font-size:11px;color:#6b4a3f;margin-bottom:12px;font-weight:600;letter-spacing:.4px;text-transform:uppercase">Como deseja pagar?</p>
       <div class="pix-opcoes" id="pix-opcoes"></div>
 
+      <!-- Caixa Pix — aparece ao selecionar opção -->
       <div class="pix-info-box" id="pix-info" style="display:none">
-        <p style="font-size:12px;color:#6b4a3f;margin-bottom:4px;opacity:.8">Pague via Pix para</p>
+
+        <!-- Cabeçalho -->
+        <p style="font-size:12px;color:#6b4a3f;margin-bottom:2px;opacity:.8">Transferir via Pix para</p>
         <div class="pix-nome-recebedor" id="pix-nome-display"></div>
         <div class="pix-valor-grande" id="pix-valor-display"></div>
+
+        <!-- Chave Pix com botão copiar -->
         <div class="pix-chave-display">
           <span id="pix-chave-display"></span>
           <button class="btn-copiar" onclick="copiarChave()">📋 Copiar</button>
         </div>
-        <div class="aviso-pix">✅ Após pagar, clique em <strong>"Já paguei"</strong> para enviar o comprovante à Patricia pelo WhatsApp.</div>
-        <div class="aguardando-badge"><div class="dot-pulso"></div> Aguardando pagamento</div>
+
+        <!-- Passos visuais -->
+        <div class="passos-pix">
+          <div class="passo-item">
+            <div class="passo-num">1</div>
+            <div class="passo-txt">Abra o app do seu banco e faça a transferência Pix para a chave acima</div>
+          </div>
+          <div class="passo-item">
+            <div class="passo-num">2</div>
+            <div class="passo-txt">Tire um <strong>print ou salve o comprovante</strong> de pagamento</div>
+          </div>
+          <div class="passo-item passo-destaque">
+            <div class="passo-num">3</div>
+            <div class="passo-txt">Clique em <strong>"Já paguei"</strong> abaixo — o WhatsApp abrirá automaticamente para você enviar o comprovante à Patricia</div>
+          </div>
+        </div>
+
+        <div class="aguardando-badge" style="margin-top:12px"><div class="dot-pulso"></div> Aguardando seu pagamento</div>
       </div>
 
-      <div id="timer-reserva"></div>
-
-      <button class="botao botao-verde btn-oculto" id="btn-ja-paguei" onclick="finalizarAgendamento()">
-        ✅ Já paguei — Enviar comprovante
+      <!-- Botão principal — aparece após selecionar pagamento -->
+      <button class="botao botao-verde" id="btn-ja-paguei" style="display:none;margin-top:16px" onclick="finalizarAgendamento()">
+        ✅ Já paguei — Enviar comprovante pelo WhatsApp
       </button>
 
       <button class="botao botao-secundario" style="margin-top:10px" onclick="voltarEtapa1()">
@@ -333,10 +371,23 @@
     <div class="ag-card">
       <div class="sucesso-box">
         <div class="sucesso-icone">🎉</div>
-        <div class="sucesso-titulo">Agendado!</div>
+        <div class="sucesso-titulo">Quase lá!</div>
         <p class="sucesso-texto" id="sucesso-texto"></p>
+
+        <!-- Checklist do que fazer agora -->
+        <div class="checklist-sucesso" id="checklist-sucesso" style="display:none">
+          <div class="check-item check-ok">✅ Agendamento registrado</div>
+          <div class="check-item check-ok">✅ WhatsApp aberto com sua mensagem</div>
+          <div class="check-item check-pendente">📎 <strong>Envie o comprovante</strong> na conversa que abriu</div>
+          <div class="check-item check-pendente">⏳ Aguarde Patricia confirmar seu horário</div>
+        </div>
+
+        <!-- Botão para reabrir WhatsApp caso tenha fechado -->
+        <button id="btn-reabrir-wpp" class="botao" style="display:none;margin-top:16px;background:#25d366;text-decoration:none" onclick="reabrirWhatsapp()">
+          📱 Reabrir WhatsApp
+        </button>
       </div>
-      <a href="index.html" class="botao" style="margin-top:16px;text-decoration:none">🏠 Voltar para início</a>
+      <a href="index.html" class="botao botao-secundario" style="margin-top:12px;text-decoration:none">🏠 Voltar para início</a>
     </div>
   </div>
 

@@ -85,7 +85,6 @@ async function carregarHorarios() {
   const agora = new Date();
   const hoje  = agora.toISOString().split("T")[0];
 
-  // busca horários ocupados — com fallback se colunas novas não existirem
   let rows = [];
   const { data, error } = await sb.from("agendamentos")
     .select("hora, data, status, reservado_ate")
@@ -114,7 +113,6 @@ async function carregarHorarios() {
 
   const horaSelecionada = horaHidden?.value || "";
 
-  // monta os botões da grade
   grade.innerHTML = horariosAtivos.map(h => {
     const jaPassou = dataSel === hoje && new Date(`${dataSel}T${h}:00`) < agora;
     const ocupado  = ocupados.includes(h);
@@ -135,7 +133,6 @@ async function carregarHorarios() {
     </button>`;
   }).join("");
 
-  // auto-seleciona o primeiro disponível se nenhum válido selecionado
   const horarioValidoSelecionado = horaSelecionada && horariosAtivos.includes(horaSelecionada)
     && !ocupados.includes(horaSelecionada)
     && !(dataSel === hoje && new Date(`${dataSel}T${horaSelecionada}:00`) < agora);
@@ -154,20 +151,16 @@ function selecionarHorario(h) {
   const horaHidden = document.getElementById("hora");
   if (horaHidden) horaHidden.value = h;
 
-  // remove selecionado de todos os disponíveis
   document.querySelectorAll(".horario-btn.disponivel").forEach(btn => {
     btn.classList.remove("selecionado");
   });
-  // marca o clicado
-  const todos = document.querySelectorAll(".horario-btn.disponivel");
-  todos.forEach(btn => {
+  document.querySelectorAll(".horario-btn.disponivel").forEach(btn => {
     if (btn.querySelector(".h-hora")?.textContent.trim() === h) {
       btn.classList.add("selecionado");
     }
   });
 }
 
-// listener no campo de data
 document.addEventListener("DOMContentLoaded", () => {
   const dataInput = document.getElementById("data");
   if (dataInput) dataInput.addEventListener("change", carregarHorarios);
@@ -237,10 +230,23 @@ async function irParaPagamento() {
   const pixOpcoes   = document.getElementById("pix-opcoes");
 
   pagamentoSelecionado = null;
+
+  // ── IMPORTANTE: muda para tela 2 ANTES de manipular elementos dela ──
+  irParaTela(2);
+  iniciarContagemRegressiva(reservadoAte);
+
+  // Reseta estado da tela 2
   document.getElementById("pix-info").style.display = "none";
   esconderBtnPaguei();
 
-  if (modoEntrada === "0") { await confirmarSemPagamento(); return; }
+  if (modoEntrada === "0") {
+    // sem pagamento — confirma direto
+    if (contagemRegressiva) clearInterval(contagemRegressiva);
+    const timerEl = document.getElementById("timer-reserva");
+    if (timerEl) timerEl.style.display = "none";
+    await confirmarSemPagamento();
+    return;
+  }
 
   if (modoEntrada === "opcao") {
     const metade = preco ? (preco / 2).toFixed(2) : null;
@@ -262,29 +268,27 @@ async function irParaPagamento() {
   } else if (modoEntrada === "50") {
     const metade = preco ? (preco / 2).toFixed(2) : null;
     pixOpcoes.innerHTML = `
-      <div class="pix-card selecionado" id="op-50" style="grid-column:1/-1">
-        <div class="check-badge" style="display:flex">✓</div>
+      <div class="pix-card" id="op-50" style="grid-column:1/-1" onclick="selecionarPagamento('50')">
+        <div class="check-badge">✓</div>
         <div class="pix-icone">💸</div>
         <div class="pix-titulo">Entrada de 50% obrigatória</div>
         ${metade ? `<div class="pix-valor">R$ ${metade}</div>` : ""}
         <div class="pix-desc">Pague via Pix para confirmar.<br>O restante no dia do atendimento.</div>
       </div>`;
-    selecionarPagamento("50");
+    // Chama APÓS montar o HTML — elemento já existe no DOM
+    await selecionarPagamento("50");
   } else if (modoEntrada === "30") {
     const trintaPct = preco ? (preco * 0.3).toFixed(2) : null;
     pixOpcoes.innerHTML = `
-      <div class="pix-card selecionado" id="op-30" style="grid-column:1/-1">
-        <div class="check-badge" style="display:flex">✓</div>
+      <div class="pix-card" id="op-30" style="grid-column:1/-1" onclick="selecionarPagamento('30')">
+        <div class="check-badge">✓</div>
         <div class="pix-icone">💸</div>
         <div class="pix-titulo">Entrada de 30% obrigatória</div>
         ${trintaPct ? `<div class="pix-valor">R$ ${trintaPct}</div>` : ""}
         <div class="pix-desc">Pague via Pix para confirmar.<br>O restante no dia do atendimento.</div>
       </div>`;
-    selecionarPagamento("30");
+    await selecionarPagamento("30");
   }
-
-  irParaTela(2);
-  iniciarContagemRegressiva(reservadoAte);
 }
 
 // ═══════════════════════════════════════════════
@@ -293,14 +297,14 @@ async function irParaPagamento() {
 function mostrarBtnPaguei() {
   const btn = document.getElementById("btn-ja-paguei");
   if (!btn) return;
-  btn.classList.remove("btn-oculto");
-  btn.classList.add("btn-visivel");
+  btn.style.display = "flex";
+  btn.disabled = false;
+  btn.textContent = "✅ Já paguei — Enviar comprovante";
 }
 function esconderBtnPaguei() {
   const btn = document.getElementById("btn-ja-paguei");
   if (!btn) return;
-  btn.classList.add("btn-oculto");
-  btn.classList.remove("btn-visivel");
+  btn.style.display = "none";
 }
 
 // ═══════════════════════════════════════════════
@@ -323,7 +327,10 @@ function iniciarContagemRegressiva(reservadoAte) {
       el.style.background = "rgba(255,100,100,0.18)";
       el.style.borderColor = "rgba(255,100,100,0.35)";
       el.style.color = "#7a0000";
-      if (dadosAgendamento.id) dbAtualizarStatus(dadosAgendamento.id, "expirado");
+      // Libera o horário no banco para outras pessoas poderem agendar
+      if (dadosAgendamento.id) {
+        dbAtualizarStatus(dadosAgendamento.id, "expirado");
+      }
       esconderBtnPaguei();
       return;
     }
@@ -348,17 +355,30 @@ async function selecionarPagamento(opcao) {
   pagamentoSelecionado = opcao;
   document.querySelectorAll(".pix-card").forEach(c => c.classList.remove("selecionado"));
   const card = document.getElementById("op-" + opcao);
-  if (card) card.classList.add("selecionado");
+  if (card) {
+    card.classList.add("selecionado");
+    // mostra o badge de check
+    const badge = card.querySelector(".check-badge");
+    if (badge) badge.style.display = "flex";
+  }
 
   const preco    = dadosAgendamento.preco || 0;
   const valorPix = opcao === "50" ? preco / 2 : opcao === "30" ? preco * 0.3 : preco;
-  const pixChave = await dbGetConfig("pixChave", getCfgLocal("pixChave", "yaranadiele@gmail.com"));
+  const pixChave = await dbGetConfig("pixChave", getCfgLocal("pixChave", ""));
   const pixNome  = await dbGetConfig("pixNome",  getCfgLocal("pixNome",  "Patricia Lima"));
 
-  document.getElementById("pix-info").style.display        = "block";
-  document.getElementById("pix-nome-display").textContent  = pixNome;
-  document.getElementById("pix-valor-display").textContent = valorPix ? `R$ ${valorPix.toFixed(2)}` : "—";
-  document.getElementById("pix-chave-display").textContent = pixChave;
+  const infoEl = document.getElementById("pix-info");
+  if (infoEl) infoEl.style.display = "block";
+
+  const nomeEl = document.getElementById("pix-nome-display");
+  if (nomeEl) nomeEl.textContent = pixNome;
+
+  const valorEl = document.getElementById("pix-valor-display");
+  if (valorEl) valorEl.textContent = valorPix ? `R$ ${valorPix.toFixed(2)}` : "—";
+
+  const chaveEl = document.getElementById("pix-chave-display");
+  if (chaveEl) chaveEl.textContent = pixChave || "Configure a chave Pix no painel admin";
+
   mostrarBtnPaguei();
 }
 
@@ -366,8 +386,10 @@ function copiarChave() {
   const chave = document.getElementById("pix-chave-display").textContent;
   navigator.clipboard.writeText(chave).then(() => {
     const btn = document.querySelector(".btn-copiar");
-    btn.textContent = "✅ Copiado!";
-    setTimeout(() => { btn.textContent = "📋 Copiar"; }, 2000);
+    if (btn) {
+      btn.textContent = "✅ Copiado!";
+      setTimeout(() => { btn.textContent = "📋 Copiar"; }, 2000);
+    }
   });
 }
 
@@ -376,31 +398,47 @@ function copiarChave() {
 // ═══════════════════════════════════════════════
 async function finalizarAgendamento() {
   if (!pagamentoSelecionado) { alert("Selecione uma opção de pagamento."); return; }
+
   const preco    = dadosAgendamento.preco || 0;
   const valorPago = pagamentoSelecionado === "50" ? preco / 2
                   : pagamentoSelecionado === "30" ? preco * 0.3
                   : preco;
+
+  // Previne duplo clique
+  const btnPaguei = document.getElementById("btn-ja-paguei");
+  if (btnPaguei) {
+    btnPaguei.disabled    = true;
+    btnPaguei.textContent = "⏳ Abrindo WhatsApp...";
+  }
+
   await enviarComprovanteWhatsapp(pagamentoSelecionado, valorPago);
 }
 
 async function enviarComprovanteWhatsapp(modoPag, valorPago) {
-  const { id, nome, servico, preco, data, hora } = dadosAgendamento;
+  const { id, nome, servico, data, hora } = dadosAgendamento;
   const dataFmt   = data.split("-").reverse().join("/");
   const numeroWpp = normalizarTel(await dbGetConfig("whatsapp", getCfgLocal("whatsapp", "5582996692302")));
-  const pixChave  = await dbGetConfig("pixChave", getCfgLocal("pixChave", "yaranadiele@gmail.com"));
+  const pixChave  = await dbGetConfig("pixChave", getCfgLocal("pixChave", ""));
 
-  // atualiza status no banco
+  // Atualiza status no banco
   if (id) {
     const { error: errUpdate } = await sb.from("agendamentos").update({
-      status: "aguardando_confirmacao", pagamento: modoPag, pix_valor: valorPago
+      status: "aguardando_confirmacao",
+      pagamento: modoPag,
+      pix_valor: valorPago
     }).eq("id", id);
+
     if (errUpdate) {
       await sb.from("agendamentos").update({
-        status: "aguardando_confirmacao", pagamento: modoPag
+        status: "aguardando_confirmacao",
+        pagamento: modoPag
       }).eq("id", id);
     }
+
+    // Registra pagamento
     await sb.from("pagamentos").upsert([{
-      agendamento_id: id, valor: valorPago,
+      agendamento_id: id,
+      valor: valorPago,
       status: "aguardando_confirmacao",
       descricao: `${servico} - ${dataFmt} às ${hora}`,
       criado_em: new Date().toISOString()
@@ -409,31 +447,42 @@ async function enviarComprovanteWhatsapp(modoPag, valorPago) {
 
   let linhaPag = "";
   if (modoPag === "total" && valorPago > 0)
-    linhaPag = `\n💰 Pix enviado: R$ ${valorPago.toFixed(2)} (total)`;
+    linhaPag = `\n💰 Valor pago: R$ ${valorPago.toFixed(2)} (total)`;
   else if (modoPag === "50" && valorPago > 0)
-    linhaPag = `\n💰 Pix enviado: R$ ${valorPago.toFixed(2)} (entrada 50% — restante no dia)`;
+    linhaPag = `\n💰 Valor pago: R$ ${valorPago.toFixed(2)} (entrada 50% — restante no dia)`;
   else if (modoPag === "30" && valorPago > 0)
-    linhaPag = `\n💰 Pix enviado: R$ ${valorPago.toFixed(2)} (entrada 30% — restante no dia)`;
+    linhaPag = `\n💰 Valor pago: R$ ${valorPago.toFixed(2)} (entrada 30% — restante no dia)`;
 
   const mensagem =
-    `Olá Patricia! 👋 Fiz o agendamento e enviei o Pix.\n\n` +
-    `👤 Nome: ${nome}\n💅 Serviço: ${servico}\n📅 Data: ${dataFmt}\n🕐 Hora: ${hora}` +
+    `Olá Patricia! 👋 Realizei o agendamento e já efetuei o pagamento via Pix.\n\n` +
+    `👤 Nome: ${nome}\n` +
+    `💅 Serviço: ${servico}\n` +
+    `📅 Data: ${dataFmt}\n` +
+    `🕐 Hora: ${hora}` +
     linhaPag +
-    `\n📲 Chave Pix: ${pixChave}\n\n📎 Segue o comprovante 👇`;
+    (pixChave ? `\n📲 Chave Pix utilizada: ${pixChave}` : "") +
+    `\n\n📎 Comprovante em anexo 👇\n_(tire o print do comprovante e envie aqui)_`;
 
-  // abre WhatsApp ANTES do await (evita popup blocker)
-  window.open(`https://wa.me/${numeroWpp}?text=${encodeURIComponent(mensagem)}`, "_blank");
+  // Guarda link do WhatsApp para caso queira reabrir
+  window._wppLink = `https://wa.me/${numeroWpp}?text=${encodeURIComponent(mensagem)}`;
+
+  // Abre WhatsApp
+  window.open(window._wppLink, "_blank");
 
   if (contagemRegressiva) clearInterval(contagemRegressiva);
 
+  // Texto de sucesso resumido
   document.getElementById("sucesso-texto").textContent =
-    `✅ Comprovante enviado para Patricia pelo WhatsApp!\n\n` +
-    `${servico} — ${dataFmt} às ${hora}\n\n` +
-    `⏳ Aguarde a confirmação de Patricia. Ela verificará o pagamento e confirmará seu horário.` +
-    (valorPago > 0 ? `\n\n💰 Valor: R$ ${valorPago.toFixed(2)}` : "");
+    `${servico}\n📅 ${dataFmt} às ${hora}` +
+    (valorPago > 0 ? `\n💰 R$ ${valorPago.toFixed(2)} enviado via Pix` : "");
+
+  // Mostra checklist e botão de reabrir
+  const checklist = document.getElementById("checklist-sucesso");
+  if (checklist) checklist.style.display = "flex";
+  const btnReabrir = document.getElementById("btn-reabrir-wpp");
+  if (btnReabrir) btnReabrir.style.display = "flex";
 
   irParaTela(3);
-  document.getElementById("btn-voltar-inicio").style.display = "none";
 }
 
 async function confirmarSemPagamento() {
@@ -444,11 +493,29 @@ async function confirmarSemPagamento() {
   const mensagem =
     `Olá Patricia! Gostaria de confirmar meu agendamento:\n\n` +
     `👤 Nome: ${nome}\n💅 Serviço: ${servico}\n📅 Data: ${dataFmt}\n🕐 Hora: ${hora}`;
-  window.open(`https://wa.me/${numeroWpp}?text=${encodeURIComponent(mensagem)}`, "_blank");
+  window._wppLink = `https://wa.me/${numeroWpp}?text=${encodeURIComponent(mensagem)}`;
+  window.open(window._wppLink, "_blank");
+
   document.getElementById("sucesso-texto").textContent =
-    `Agendamento enviado para Patricia! 😊\n\n${servico} — ${dataFmt} às ${hora}`;
+    `${servico}\n📅 ${dataFmt} às ${hora}`;
+
+  const checklist = document.getElementById("checklist-sucesso");
+  if (checklist) {
+    checklist.innerHTML = `
+      <div class="check-item check-ok">✅ Agendamento registrado</div>
+      <div class="check-item check-ok">✅ Mensagem enviada para Patricia</div>
+      <div class="check-item check-pendente">⏳ Aguarde Patricia confirmar seu horário</div>`;
+    checklist.style.display = "flex";
+  }
+  const btnReabrir = document.getElementById("btn-reabrir-wpp");
+  if (btnReabrir) btnReabrir.style.display = "flex";
+
   irParaTela(3);
-  document.getElementById("btn-voltar-inicio").style.display = "none";
+}
+
+// Reabre o WhatsApp caso o cliente tenha fechado sem enviar o comprovante
+function reabrirWhatsapp() {
+  if (window._wppLink) window.open(window._wppLink, "_blank");
 }
 
 // ═══════════════════════════════════════════════
@@ -456,18 +523,23 @@ async function confirmarSemPagamento() {
 // ═══════════════════════════════════════════════
 function irParaTela(n) {
   document.querySelectorAll(".tela").forEach(t => t.classList.remove("ativa"));
-  document.getElementById("tela-" + n).classList.add("ativa");
+  const tela = document.getElementById("tela-" + n);
+  if (tela) tela.classList.add("ativa");
+
   [1,2,3].forEach(i => {
     const circ = document.getElementById("circ-" + i);
     const lbl  = document.getElementById("lbl-" + i);
+    if (!circ) return;
     circ.classList.remove("ativa","feita");
     if (lbl) lbl.classList.remove("ativa");
     if (i < n)        { circ.classList.add("feita"); circ.textContent = "✓"; }
     else if (i === n) { circ.classList.add("ativa"); circ.textContent = i; if(lbl) lbl.classList.add("ativa"); }
     else              { circ.textContent = i; }
   });
+
   const btnVoltar = document.getElementById("btn-voltar-inicio");
   if (btnVoltar) btnVoltar.style.display = n === 3 ? "none" : "flex";
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function voltarEtapa1() {
@@ -476,5 +548,6 @@ function voltarEtapa1() {
     dadosAgendamento = {};
   }
   if (contagemRegressiva) clearInterval(contagemRegressiva);
+  pagamentoSelecionado = null;
   irParaTela(1);
 }
