@@ -357,15 +357,20 @@ async function selecionarPagamento(opcao) {
   const card = document.getElementById("op-" + opcao);
   if (card) {
     card.classList.add("selecionado");
-    // mostra o badge de check
     const badge = card.querySelector(".check-badge");
     if (badge) badge.style.display = "flex";
   }
 
   const preco    = dadosAgendamento.preco || 0;
   const valorPix = opcao === "50" ? preco / 2 : opcao === "30" ? preco * 0.3 : preco;
+
+  // Busca do banco E salva em localStorage para uso síncrono no clique "Já paguei"
   const pixChave = await dbGetConfig("pixChave", getCfgLocal("pixChave", ""));
   const pixNome  = await dbGetConfig("pixNome",  getCfgLocal("pixNome",  "Patricia Lima"));
+  const whatsapp = await dbGetConfig("whatsapp", getCfgLocal("whatsapp", "5582996692302"));
+  localStorage.setItem("cfg_pixChave",  JSON.stringify(pixChave));
+  localStorage.setItem("cfg_pixNome",   JSON.stringify(pixNome));
+  localStorage.setItem("cfg_whatsapp",  JSON.stringify(whatsapp));
 
   const infoEl = document.getElementById("pix-info");
   if (infoEl) infoEl.style.display = "block";
@@ -395,56 +400,21 @@ function copiarChave() {
 
 // ═══════════════════════════════════════════════
 //  JÁ PAGUEI
+//  REGRA CRÍTICA: window.open DEVE ser chamado
+//  ANTES de qualquer await, senão o navegador
+//  bloqueia como popup.
 // ═══════════════════════════════════════════════
-async function finalizarAgendamento() {
+function finalizarAgendamento() {
   if (!pagamentoSelecionado) { alert("Selecione uma opção de pagamento."); return; }
 
-  const preco    = dadosAgendamento.preco || 0;
-  const valorPago = pagamentoSelecionado === "50" ? preco / 2
-                  : pagamentoSelecionado === "30" ? preco * 0.3
+  const { nome, servico, data, hora, preco } = dadosAgendamento;
+  const modoPag   = pagamentoSelecionado;
+  const valorPago = modoPag === "50" ? preco / 2
+                  : modoPag === "30" ? preco * 0.3
                   : preco;
-
-  // Previne duplo clique
-  const btnPaguei = document.getElementById("btn-ja-paguei");
-  if (btnPaguei) {
-    btnPaguei.disabled    = true;
-    btnPaguei.textContent = "⏳ Abrindo WhatsApp...";
-  }
-
-  await enviarComprovanteWhatsapp(pagamentoSelecionado, valorPago);
-}
-
-async function enviarComprovanteWhatsapp(modoPag, valorPago) {
-  const { id, nome, servico, data, hora } = dadosAgendamento;
   const dataFmt   = data.split("-").reverse().join("/");
-  const numeroWpp = normalizarTel(await dbGetConfig("whatsapp", getCfgLocal("whatsapp", "5582996692302")));
-  const pixChave  = await dbGetConfig("pixChave", getCfgLocal("pixChave", ""));
 
-  // Atualiza status no banco
-  if (id) {
-    const { error: errUpdate } = await sb.from("agendamentos").update({
-      status: "aguardando_confirmacao",
-      pagamento: modoPag,
-      pix_valor: valorPago
-    }).eq("id", id);
-
-    if (errUpdate) {
-      await sb.from("agendamentos").update({
-        status: "aguardando_confirmacao",
-        pagamento: modoPag
-      }).eq("id", id);
-    }
-
-    // Registra pagamento
-    await sb.from("pagamentos").upsert([{
-      agendamento_id: id,
-      valor: valorPago,
-      status: "aguardando_confirmacao",
-      descricao: `${servico} - ${dataFmt} às ${hora}`,
-      criado_em: new Date().toISOString()
-    }], { onConflict: "agendamento_id" }).catch(e => console.warn("pagamentos:", e));
-  }
-
+  // ── Monta a mensagem com dados já disponíveis (sem await) ──
   let linhaPag = "";
   if (modoPag === "total" && valorPago > 0)
     linhaPag = `\n💰 Valor pago: R$ ${valorPago.toFixed(2)} (total)`;
@@ -452,6 +422,12 @@ async function enviarComprovanteWhatsapp(modoPag, valorPago) {
     linhaPag = `\n💰 Valor pago: R$ ${valorPago.toFixed(2)} (entrada 50% — restante no dia)`;
   else if (modoPag === "30" && valorPago > 0)
     linhaPag = `\n💰 Valor pago: R$ ${valorPago.toFixed(2)} (entrada 30% — restante no dia)`;
+
+  // Pega número e chave Pix do cache local (já carregado em selecionarPagamento)
+  const numeroWpp = normalizarTel(
+    getCfgLocal("whatsapp", "5582996692302")
+  );
+  const pixChave = getCfgLocal("pixChave", "");
 
   const mensagem =
     `Olá Patricia! 👋 Realizei o agendamento e já efetuei o pagamento via Pix.\n\n` +
@@ -461,13 +437,48 @@ async function enviarComprovanteWhatsapp(modoPag, valorPago) {
     `🕐 Hora: ${hora}` +
     linhaPag +
     (pixChave ? `\n📲 Chave Pix utilizada: ${pixChave}` : "") +
-    `\n\n📎 Comprovante em anexo 👇\n_(tire o print do comprovante e envie aqui)_`;
+    `\n\n📎 Comprovante em anexo 👇\n_(envie o print do comprovante aqui)_`;
 
-  // Guarda link do WhatsApp para caso queira reabrir
-  window._wppLink = `https://wa.me/${numeroWpp}?text=${encodeURIComponent(mensagem)}`;
+  const link = `https://wa.me/${numeroWpp}?text=${encodeURIComponent(mensagem)}`;
+  window._wppLink = link;
 
-  // Abre WhatsApp
-  window.open(window._wppLink, "_blank");
+  // ── Abre WhatsApp AGORA, direto no clique, sem nenhum await antes ──
+  window.open(link, "_blank");
+
+  // Desabilita botão para evitar duplo clique
+  const btnPaguei = document.getElementById("btn-ja-paguei");
+  if (btnPaguei) { btnPaguei.disabled = true; btnPaguei.textContent = "✅ WhatsApp aberto!"; }
+
+  // ── Atualiza banco e tela em segundo plano (não bloqueia o WhatsApp) ──
+  _atualizarBancoEAvancar(modoPag, valorPago, dataFmt, servico, hora);
+}
+
+async function _atualizarBancoEAvancar(modoPag, valorPago, dataFmt, servico, hora) {
+  const { id } = dadosAgendamento;
+
+  if (id) {
+    // Tenta salvar com todas as colunas; se falhar, salva só o básico
+    const { error } = await sb.from("agendamentos").update({
+      status: "aguardando_confirmacao",
+      pagamento: modoPag,
+      pix_valor: valorPago
+    }).eq("id", id);
+
+    if (error) {
+      await sb.from("agendamentos").update({
+        status: "aguardando_confirmacao",
+        pagamento: modoPag
+      }).eq("id", id);
+    }
+
+    await sb.from("pagamentos").upsert([{
+      agendamento_id: id,
+      valor: valorPago,
+      status: "aguardando_confirmacao",
+      descricao: `${servico} - ${dataFmt} às ${hora}`,
+      criado_em: new Date().toISOString()
+    }], { onConflict: "agendamento_id" }).catch(e => console.warn("pagamentos:", e));
+  }
 
   if (contagemRegressiva) clearInterval(contagemRegressiva);
 
@@ -487,14 +498,18 @@ async function enviarComprovanteWhatsapp(modoPag, valorPago) {
 
 async function confirmarSemPagamento() {
   const { id, nome, servico, data, hora } = dadosAgendamento;
-  const dataFmt   = data.split("-").reverse().join("/");
-  const numeroWpp = normalizarTel(await dbGetConfig("whatsapp", getCfgLocal("whatsapp", "5582996692302")));
-  if (id) await dbAtualizarStatus(id, "pendente");
+  const dataFmt = data.split("-").reverse().join("/");
+
+  // Monta mensagem com cache local (sem await) e abre WhatsApp imediatamente
+  const numeroWpp = normalizarTel(getCfgLocal("whatsapp", "5582996692302"));
   const mensagem =
     `Olá Patricia! Gostaria de confirmar meu agendamento:\n\n` +
     `👤 Nome: ${nome}\n💅 Serviço: ${servico}\n📅 Data: ${dataFmt}\n🕐 Hora: ${hora}`;
   window._wppLink = `https://wa.me/${numeroWpp}?text=${encodeURIComponent(mensagem)}`;
   window.open(window._wppLink, "_blank");
+
+  // Atualiza banco em segundo plano
+  if (id) await dbAtualizarStatus(id, "pendente");
 
   document.getElementById("sucesso-texto").textContent =
     `${servico}\n📅 ${dataFmt} às ${hora}`;
