@@ -17,9 +17,20 @@ let dadosAgendamento     = {};
 let pagamentoSelecionado = null;
 let contagemRegressiva   = null;
 
+// Serviços padrão — usados se o banco estiver vazio
+const SERVICOS_PADRAO = [
+  { nome: "Design de sobrancelha",           preco: 40  },
+  { nome: "Design de sobrancelha com Henna", preco: 40  },
+  { nome: "Design de unhas",                 preco: 150 },
+  { nome: "Penteados",                       preco: 120 },
+  { nome: "Maquiagem",                       preco: 35  }
+];
+
 function getCfgLocal(key, fallback) {
-  const raw = localStorage.getItem("cfg_" + key);
-  return raw !== null ? JSON.parse(raw) : fallback;
+  try {
+    const raw = localStorage.getItem("cfg_" + key);
+    return raw !== null ? JSON.parse(raw) : fallback;
+  } catch { return fallback; }
 }
 
 // ═══════════════════════════════════════════════
@@ -31,30 +42,56 @@ window.onload = async function () {
 };
 
 async function aplicarFrase() {
-  const frase = await dbGetConfig("frase", getCfgLocal("frase", "Realçando sua beleza natural"));
-  const el = document.getElementById("frase-site");
-  if (el) el.textContent = frase;
+  try {
+    const frase = await dbGetConfig("frase", getCfgLocal("frase", "Realçando sua beleza natural"));
+    const el = document.getElementById("frase-site");
+    if (el && frase) el.textContent = frase;
+  } catch(e) { console.warn("frase:", e); }
 }
 
 // ─── Serviços ────────────────────────────────
 async function carregarServicos() {
   const select = document.getElementById("servico");
   if (!select) return;
-  const defaultServicos = [
-    { nome: "Design de sobrancelha",           preco: 40  },
-    { nome: "Design de sobrancelha com Henna", preco: 40  },
-    { nome: "Design de unhas",                 preco: 150 },
-    { nome: "Penteados",                       preco: 120 },
-    { nome: "Maquiagem",                       preco: 35  }
-  ];
-  const servicosCompletos = await dbGetConfig("servicosCompletos", null);
-  const servicos = servicosCompletos?.length
-    ? servicosCompletos
-    : await dbGetConfig("servicos", getCfgLocal("servicos", defaultServicos));
+
+  // Mostra loading
+  select.innerHTML = '<option value="">Carregando serviços...</option>';
+
+  let servicos = [];
+  try {
+    // Tenta buscar servicosCompletos primeiro
+    const completos = await dbGetConfig("servicosCompletos", null);
+    if (completos && Array.isArray(completos) && completos.length > 0) {
+      servicos = completos;
+    } else {
+      // Tenta servicosBasicos
+      const basicos = await dbGetConfig("servicos", null);
+      if (basicos && Array.isArray(basicos) && basicos.length > 0) {
+        servicos = basicos;
+      }
+    }
+  } catch(e) {
+    console.warn("Erro ao buscar serviços do banco:", e);
+  }
+
+  // Se ainda vazio, tenta localStorage
+  if (!servicos.length) {
+    const local = getCfgLocal("servicosCompletos", null) || getCfgLocal("servicos", null);
+    if (local && Array.isArray(local) && local.length > 0) {
+      servicos = local;
+    }
+  }
+
+  // Último recurso: padrão fixo
+  if (!servicos.length) {
+    servicos = SERVICOS_PADRAO;
+  }
+
+  // Monta as opções — tudo numa linha, sem espaços extras no value
   select.innerHTML = servicos.map(s => {
-    const nome  = (s.nome  || "").trim();
-    const preco = s.preco  || 0;
-    const label = nome + (preco ? ` — R$ ${Number(preco).toFixed(2)}` : "");
+    const nome  = String(s.nome  || "").trim();
+    const preco = parseFloat(s.preco) || 0;
+    const label = nome + (preco ? ` — R$ ${preco.toFixed(2)}` : "");
     return `<option value="${nome}" data-preco="${preco}">${label}</option>`;
   }).join("");
 }
@@ -77,7 +114,7 @@ async function carregarHorarios() {
   const horariosAtivos  = await dbGetConfig("horariosAtivos",  getCfgLocal("horariosAtivos",  ["09:00","10:00","11:00","13:00","14:00","15:00"]));
   const datasBloqueadas = await dbGetConfig("datasBloqueadas", getCfgLocal("datasBloqueadas", []));
 
-  if (datasBloqueadas.includes(dataSel)) {
+  if ((datasBloqueadas || []).includes(dataSel)) {
     grade.innerHTML = '<div class="aviso-sem-data">❌ Esta data está indisponível</div>';
     if (horaHidden) horaHidden.value = "";
     return;
@@ -87,21 +124,23 @@ async function carregarHorarios() {
   const hoje  = agora.toISOString().split("T")[0];
 
   let rows = [];
-  const { data, error } = await sb.from("agendamentos")
-    .select("hora, data, status, reservado_ate")
-    .eq("data", dataSel)
-    .neq("status", "cancelado")
-    .neq("status", "expirado");
-
-  if (error) {
-    const { data: data2 } = await sb.from("agendamentos")
-      .select("hora, data, status")
+  try {
+    const { data, error } = await sb.from("agendamentos")
+      .select("hora, data, status, reservado_ate")
       .eq("data", dataSel)
-      .neq("status", "cancelado");
-    rows = data2 || [];
-  } else {
-    rows = data || [];
-  }
+      .neq("status", "cancelado")
+      .neq("status", "expirado");
+
+    if (error) {
+      const { data: data2 } = await sb.from("agendamentos")
+        .select("hora, data, status")
+        .eq("data", dataSel)
+        .neq("status", "cancelado");
+      rows = data2 || [];
+    } else {
+      rows = data || [];
+    }
+  } catch(e) { rows = []; }
 
   const ocupados = rows.filter(r => {
     const dataHora = new Date(`${r.data}T${r.hora}:00`);
@@ -113,35 +152,30 @@ async function carregarHorarios() {
   }).map(r => r.hora);
 
   const horaSelecionada = horaHidden?.value || "";
+  const lista = Array.isArray(horariosAtivos) ? horariosAtivos : ["09:00","10:00","11:00","13:00","14:00","15:00"];
 
-  grade.innerHTML = horariosAtivos.map(h => {
+  grade.innerHTML = lista.map(h => {
     const jaPassou = dataSel === hoje && new Date(`${dataSel}T${h}:00`) < agora;
     const ocupado  = ocupados.includes(h);
 
-    let classe   = "disponivel";
-    let tag      = "Disponível";
-    let disabled = "";
-
+    let classe = "disponivel", tag = "Disponível", disabled = "";
     if (jaPassou)     { classe = "encerrado"; tag = "Encerrado"; disabled = "disabled"; }
     else if (ocupado) { classe = "ocupado";   tag = "Ocupado";   disabled = "disabled"; }
 
     const sel = (!disabled && h === horaSelecionada) ? " selecionado" : "";
-
-    return `<button type="button" class="horario-btn ${classe}${sel}" ${disabled}
-      ${disabled ? "" : `onclick="selecionarHorario('${h}')"`}>
+    return `<button type="button" class="horario-btn ${classe}${sel}" ${disabled} ${disabled ? "" : `onclick="selecionarHorario('${h}')"`}>
       <span class="h-hora">${h}</span>
       <span class="h-tag">${tag}</span>
     </button>`;
   }).join("");
 
-  const horarioValidoSelecionado = horaSelecionada && horariosAtivos.includes(horaSelecionada)
+  const horarioValido = horaSelecionada && lista.includes(horaSelecionada)
     && !ocupados.includes(horaSelecionada)
     && !(dataSel === hoje && new Date(`${dataSel}T${horaSelecionada}:00`) < agora);
 
-  if (!horarioValidoSelecionado) {
-    const primeiro = horariosAtivos.find(h => {
-      const jaPassou = dataSel === hoje && new Date(`${dataSel}T${h}:00`) < agora;
-      return !jaPassou && !ocupados.includes(h);
+  if (!horarioValido) {
+    const primeiro = lista.find(h => {
+      return !(dataSel === hoje && new Date(`${dataSel}T${h}:00`) < agora) && !ocupados.includes(h);
     });
     if (primeiro) selecionarHorario(primeiro);
     else if (horaHidden) horaHidden.value = "";
@@ -151,14 +185,8 @@ async function carregarHorarios() {
 function selecionarHorario(h) {
   const horaHidden = document.getElementById("hora");
   if (horaHidden) horaHidden.value = h;
-
   document.querySelectorAll(".horario-btn.disponivel").forEach(btn => {
-    btn.classList.remove("selecionado");
-  });
-  document.querySelectorAll(".horario-btn.disponivel").forEach(btn => {
-    if (btn.querySelector(".h-hora")?.textContent.trim() === h) {
-      btn.classList.add("selecionado");
-    }
+    btn.classList.toggle("selecionado", btn.querySelector(".h-hora")?.textContent.trim() === h);
   });
 }
 
@@ -168,14 +196,14 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ═══════════════════════════════════════════════
-//  ETAPA 1 → 2  (reserva horário por 30 min)
+//  ETAPA 1 → 2
 // ═══════════════════════════════════════════════
 async function irParaPagamento() {
   const nome      = document.getElementById("nome").value.trim();
   const telefone  = document.getElementById("telefone").value.trim();
   const servicoEl = document.getElementById("servico");
-  const servico   = (servicoEl.value || "").trim();
-  const precoRaw  = servicoEl.selectedOptions[0]?.getAttribute("data-preco") || "0";
+  const servico   = (servicoEl?.value || "").trim();
+  const precoRaw  = servicoEl?.selectedOptions[0]?.getAttribute("data-preco") || "0";
   const preco     = parseFloat(precoRaw) || 0;
   const data      = document.getElementById("data").value;
   const hora      = document.getElementById("hora").value;
@@ -188,9 +216,8 @@ async function irParaPagamento() {
     alert("Selecione um horário disponível antes de continuar.");
     return;
   }
-
   if (new Date(`${data}T${hora}:00`) < new Date()) {
-    alert("Este horário já passou. Por favor, escolha outra data ou horário.");
+    alert("Este horário já passou. Escolha outra data ou horário.");
     await carregarHorarios();
     return;
   }
@@ -202,11 +229,11 @@ async function irParaPagamento() {
     return;
   }
 
-  // reserva por 30 min
+  // Reserva por 30 min
   const reservadoAte = new Date(Date.now() + 30 * 60 * 1000).toISOString();
   const ag = await dbSalvarAgendamento({
     nome,
-    telefone:      normalizarTel(telefone),
+    telefone: normalizarTel(telefone),
     servico, preco, data, hora,
     status:        "reservado",
     reservado_ate: reservadoAte,
@@ -233,20 +260,18 @@ async function irParaPagamento() {
 
   pagamentoSelecionado = null;
 
-  // ── IMPORTANTE: muda para tela 2 ANTES de manipular elementos dela ──
+  // Muda para tela 2 ANTES de manipular elementos dela
   irParaTela(2);
   iniciarContagemRegressiva(reservadoAte);
 
-  // Reseta estado da tela 2
   document.getElementById("pix-info").style.display = "none";
   esconderBtnPaguei();
 
   if (modoEntrada === "0") {
-    // sem pagamento — confirma direto
     if (contagemRegressiva) clearInterval(contagemRegressiva);
     const timerEl = document.getElementById("timer-reserva");
     if (timerEl) timerEl.style.display = "none";
-    await confirmarSemPagamento();
+    confirmarSemPagamento();
     return;
   }
 
@@ -275,10 +300,9 @@ async function irParaPagamento() {
         <div class="pix-icone">💸</div>
         <div class="pix-titulo">Entrada de 50% obrigatória</div>
         ${metade ? `<div class="pix-valor">R$ ${metade}</div>` : ""}
-        <div class="pix-desc">Pague via Pix para confirmar.<br>O restante no dia do atendimento.</div>
+        <div class="pix-desc">Pague via Pix para confirmar.<br>Restante no dia do atendimento.</div>
       </div>`;
-    // Chama APÓS montar o HTML — elemento já existe no DOM
-    await selecionarPagamento("50");
+    selecionarPagamento("50");
   } else if (modoEntrada === "30") {
     const trintaPct = preco ? (preco * 0.3).toFixed(2) : null;
     pixOpcoes.innerHTML = `
@@ -287,9 +311,9 @@ async function irParaPagamento() {
         <div class="pix-icone">💸</div>
         <div class="pix-titulo">Entrada de 30% obrigatória</div>
         ${trintaPct ? `<div class="pix-valor">R$ ${trintaPct}</div>` : ""}
-        <div class="pix-desc">Pague via Pix para confirmar.<br>O restante no dia do atendimento.</div>
+        <div class="pix-desc">Pague via Pix para confirmar.<br>Restante no dia do atendimento.</div>
       </div>`;
-    await selecionarPagamento("30");
+    selecionarPagamento("30");
   }
 }
 
@@ -301,12 +325,11 @@ function mostrarBtnPaguei() {
   if (!btn) return;
   btn.style.display = "flex";
   btn.disabled = false;
-  btn.textContent = "✅ Já paguei — Enviar comprovante";
+  btn.textContent = "✅ Já paguei — Enviar comprovante pelo WhatsApp";
 }
 function esconderBtnPaguei() {
   const btn = document.getElementById("btn-ja-paguei");
-  if (!btn) return;
-  btn.style.display = "none";
+  if (btn) btn.style.display = "none";
 }
 
 // ═══════════════════════════════════════════════
@@ -314,40 +337,34 @@ function esconderBtnPaguei() {
 // ═══════════════════════════════════════════════
 function iniciarContagemRegressiva(reservadoAte) {
   if (contagemRegressiva) clearInterval(contagemRegressiva);
-  const expira = new Date(reservadoAte).getTime();
+  const expira  = new Date(reservadoAte).getTime();
   const timerEl = document.getElementById("timer-reserva");
   if (timerEl) timerEl.style.display = "block";
 
-  function atualizar() {
+  function tick() {
     const el = document.getElementById("timer-reserva");
     if (!el) return;
     const restante = expira - Date.now();
-
     if (restante <= 0) {
       clearInterval(contagemRegressiva);
-      el.innerHTML = `⏰ Reserva expirada! O horário foi liberado. <a href="agendamento.html" style="color:#e38f7a;font-weight:600">Tente novamente</a>`;
-      el.style.background = "rgba(255,100,100,0.18)";
-      el.style.borderColor = "rgba(255,100,100,0.35)";
-      el.style.color = "#7a0000";
-      // Libera o horário no banco para outras pessoas poderem agendar
-      if (dadosAgendamento.id) {
-        dbAtualizarStatus(dadosAgendamento.id, "expirado");
-      }
+      el.innerHTML   = `⏰ Reserva expirada! O horário foi liberado. <a href="agendamento.html" style="color:#e38f7a;font-weight:600">Tente novamente</a>`;
+      el.style.background   = "rgba(255,100,100,0.18)";
+      el.style.borderColor  = "rgba(255,100,100,0.35)";
+      el.style.color        = "#7a0000";
+      if (dadosAgendamento.id) dbAtualizarStatus(dadosAgendamento.id, "expirado");
       esconderBtnPaguei();
       return;
     }
-
-    const min     = Math.floor(restante / 60000);
-    const seg     = Math.floor((restante % 60000) / 1000);
-    const urgente = restante < 5 * 60 * 1000;
-    el.innerHTML  = `${urgente ? "🔴" : "⏳"} Horário reservado por <strong>${min}:${String(seg).padStart(2,"0")}</strong> — pague para confirmar`;
-    el.style.background   = urgente ? "rgba(255,150,50,0.22)" : "rgba(240,192,96,0.18)";
-    el.style.borderColor  = urgente ? "rgba(255,150,50,0.4)"  : "rgba(240,192,96,0.38)";
-    el.style.color        = urgente ? "#7a3300" : "#7a5700";
+    const min = Math.floor(restante / 60000);
+    const seg = Math.floor((restante % 60000) / 1000);
+    const urg = restante < 5 * 60 * 1000;
+    el.innerHTML = `${urg ? "🔴" : "⏳"} Horário reservado por <strong>${min}:${String(seg).padStart(2,"0")}</strong> — pague para confirmar`;
+    el.style.background  = urg ? "rgba(255,150,50,0.22)" : "rgba(240,192,96,0.18)";
+    el.style.borderColor = urg ? "rgba(255,150,50,0.4)"  : "rgba(240,192,96,0.38)";
+    el.style.color       = urg ? "#7a3300" : "#7a5700";
   }
-
-  atualizar();
-  contagemRegressiva = setInterval(atualizar, 1000);
+  tick();
+  contagemRegressiva = setInterval(tick, 1000);
 }
 
 // ═══════════════════════════════════════════════
@@ -366,19 +383,19 @@ async function selecionarPagamento(opcao) {
   const preco    = dadosAgendamento.preco || 0;
   const valorPix = opcao === "50" ? preco / 2 : opcao === "30" ? preco * 0.3 : preco;
 
-  // Busca do banco E salva em localStorage para uso síncrono no clique "Já paguei"
+  // Busca configs e salva em localStorage para uso síncrono no clique "Já paguei"
   const pixChave = await dbGetConfig("pixChave", getCfgLocal("pixChave", ""));
   const pixNome  = await dbGetConfig("pixNome",  getCfgLocal("pixNome",  "Patricia Lima"));
   const whatsapp = await dbGetConfig("whatsapp", getCfgLocal("whatsapp", "5582996692302"));
-  localStorage.setItem("cfg_pixChave",  JSON.stringify(pixChave));
-  localStorage.setItem("cfg_pixNome",   JSON.stringify(pixNome));
-  localStorage.setItem("cfg_whatsapp",  JSON.stringify(whatsapp));
+  localStorage.setItem("cfg_pixChave", JSON.stringify(pixChave));
+  localStorage.setItem("cfg_pixNome",  JSON.stringify(pixNome));
+  localStorage.setItem("cfg_whatsapp", JSON.stringify(whatsapp));
 
   const infoEl = document.getElementById("pix-info");
   if (infoEl) infoEl.style.display = "block";
 
   const nomeEl = document.getElementById("pix-nome-display");
-  if (nomeEl) nomeEl.textContent = pixNome;
+  if (nomeEl) nomeEl.textContent = pixNome || "Patricia Lima";
 
   const valorEl = document.getElementById("pix-valor-display");
   if (valorEl) valorEl.textContent = valorPix ? `R$ ${valorPix.toFixed(2)}` : "—";
@@ -390,33 +407,31 @@ async function selecionarPagamento(opcao) {
 }
 
 function copiarChave() {
-  const chave = document.getElementById("pix-chave-display").textContent;
+  const chave = document.getElementById("pix-chave-display")?.textContent || "";
   navigator.clipboard.writeText(chave).then(() => {
     const btn = document.querySelector(".btn-copiar");
-    if (btn) {
-      btn.textContent = "✅ Copiado!";
-      setTimeout(() => { btn.textContent = "📋 Copiar"; }, 2000);
-    }
+    if (btn) { btn.textContent = "✅ Copiado!"; setTimeout(() => { btn.textContent = "📋 Copiar"; }, 2000); }
+  }).catch(() => {
+    // fallback para navegadores sem clipboard API
+    const el = document.createElement("textarea");
+    el.value = chave; document.body.appendChild(el);
+    el.select(); document.execCommand("copy"); document.body.removeChild(el);
+    const btn = document.querySelector(".btn-copiar");
+    if (btn) { btn.textContent = "✅ Copiado!"; setTimeout(() => { btn.textContent = "📋 Copiar"; }, 2000); }
   });
 }
 
 // ═══════════════════════════════════════════════
-//  JÁ PAGUEI
-//  REGRA CRÍTICA: window.open DEVE ser chamado
-//  ANTES de qualquer await, senão o navegador
-//  bloqueia como popup.
+//  JÁ PAGUEI — window.open ANTES de qualquer await
 // ═══════════════════════════════════════════════
 function finalizarAgendamento() {
   if (!pagamentoSelecionado) { alert("Selecione uma opção de pagamento."); return; }
 
   const { nome, servico, data, hora, preco } = dadosAgendamento;
   const modoPag   = pagamentoSelecionado;
-  const valorPago = modoPag === "50" ? preco / 2
-                  : modoPag === "30" ? preco * 0.3
-                  : preco;
+  const valorPago = modoPag === "50" ? preco / 2 : modoPag === "30" ? preco * 0.3 : preco;
   const dataFmt   = data.split("-").reverse().join("/");
 
-  // ── Monta a mensagem com dados já disponíveis (sem await) ──
   let linhaPag = "";
   if (modoPag === "total" && valorPago > 0)
     linhaPag = `\n💰 Valor pago: R$ ${valorPago.toFixed(2)} (total)`;
@@ -425,107 +440,83 @@ function finalizarAgendamento() {
   else if (modoPag === "30" && valorPago > 0)
     linhaPag = `\n💰 Valor pago: R$ ${valorPago.toFixed(2)} (entrada 30% — restante no dia)`;
 
-  // Pega número e chave Pix do cache local (já carregado em selecionarPagamento)
-  const numeroWpp = normalizarTel(
-    getCfgLocal("whatsapp", "5582996692302")
-  );
-  const pixChave = getCfgLocal("pixChave", "");
+  const numeroWpp = normalizarTel(getCfgLocal("whatsapp", "5582996692302"));
+  const pixChave  = getCfgLocal("pixChave", "");
 
   const mensagem =
     `Olá Patricia! 👋 Realizei o agendamento e já efetuei o pagamento via Pix.\n\n` +
-    `👤 Nome: ${nome}\n` +
-    `💅 Serviço: ${servico}\n` +
-    `📅 Data: ${dataFmt}\n` +
-    `🕐 Hora: ${hora}` +
+    `👤 Nome: ${nome}\n💅 Serviço: ${servico}\n📅 Data: ${dataFmt}\n🕐 Hora: ${hora}` +
     linhaPag +
-    (pixChave ? `\n📲 Chave Pix utilizada: ${pixChave}` : "") +
-    `\n\n📎 Comprovante em anexo 👇\n_(envie o print do comprovante aqui)_`;
+    (pixChave ? `\n📲 Chave Pix: ${pixChave}` : "") +
+    `\n\n📎 Comprovante em anexo 👇\n_(envie o print aqui)_`;
 
   const link = `https://wa.me/${numeroWpp}?text=${encodeURIComponent(mensagem)}`;
   window._wppLink = link;
 
-  // ── Abre WhatsApp AGORA, direto no clique, sem nenhum await antes ──
+  // Abre WhatsApp AGORA — sem nenhum await antes
   window.open(link, "_blank");
 
-  // Desabilita botão para evitar duplo clique
-  const btnPaguei = document.getElementById("btn-ja-paguei");
-  if (btnPaguei) { btnPaguei.disabled = true; btnPaguei.textContent = "✅ WhatsApp aberto!"; }
+  const btn = document.getElementById("btn-ja-paguei");
+  if (btn) { btn.disabled = true; btn.textContent = "✅ WhatsApp aberto!"; }
 
-  // ── Atualiza banco e tela em segundo plano (não bloqueia o WhatsApp) ──
-  _atualizarBancoEAvancar(modoPag, valorPago, dataFmt, servico, hora);
+  // Salva no banco em segundo plano
+  _salvarPagamentoNoBanco(modoPag, valorPago, dataFmt, servico, hora);
 }
 
-async function _atualizarBancoEAvancar(modoPag, valorPago, dataFmt, servico, hora) {
+async function _salvarPagamentoNoBanco(modoPag, valorPago, dataFmt, servico, hora) {
   const { id } = dadosAgendamento;
-
   if (id) {
-    // Tenta salvar com todas as colunas; se falhar, salva só o básico
     const { error } = await sb.from("agendamentos").update({
-      status: "aguardando_confirmacao",
-      pagamento: modoPag,
-      pix_valor: valorPago
+      status: "aguardando_confirmacao", pagamento: modoPag, pix_valor: valorPago
     }).eq("id", id);
-
     if (error) {
       await sb.from("agendamentos").update({
-        status: "aguardando_confirmacao",
-        pagamento: modoPag
+        status: "aguardando_confirmacao", pagamento: modoPag
       }).eq("id", id);
     }
-
     await sb.from("pagamentos").upsert([{
-      agendamento_id: id,
-      valor: valorPago,
+      agendamento_id: id, valor: valorPago,
       status: "aguardando_confirmacao",
       descricao: `${servico} - ${dataFmt} às ${hora}`,
       criado_em: new Date().toISOString()
     }], { onConflict: "agendamento_id" }).catch(e => console.warn("pagamentos:", e));
   }
-
   if (contagemRegressiva) clearInterval(contagemRegressiva);
 
-  // Tela 3 — checklist mostrando o que foi feito
-  const { servico, data, hora } = dadosAgendamento;
-  const dataFmt2 = data.split("-").reverse().join("/");
-
+  const { servico: sv, data, hora: hr } = dadosAgendamento;
+  const df = data.split("-").reverse().join("/");
   document.getElementById("sucesso-texto").textContent =
-    `${servico}\n📅 ${dataFmt2} às ${hora}` +
-    (valorPago > 0 ? `\n💰 R$ ${valorPago.toFixed(2)} enviado via Pix` : "");
+    `${sv}\n📅 ${df} às ${hr}` + (valorPago > 0 ? `\n💰 R$ ${valorPago.toFixed(2)} enviado via Pix` : "");
 
   const checklist = document.getElementById("checklist-sucesso");
   if (checklist) {
     checklist.innerHTML = `
       <div class="check-item check-ok">✅ Agendamento registrado no sistema</div>
-      <div class="check-item check-ok">✅ WhatsApp aberto com os dados do pagamento</div>
+      <div class="check-item check-ok">✅ WhatsApp aberto com os dados</div>
       <div class="check-item check-ok" style="background:rgba(110,203,139,0.28);font-weight:600">📎 Envie o <strong>print do comprovante</strong> na conversa aberta</div>
       <div class="check-item check-pendente">⏳ Patricia confirmará seu horário após verificar</div>`;
     checklist.style.display = "flex";
   }
-
   const btnReabrir = document.getElementById("btn-reabrir-wpp");
   if (btnReabrir) btnReabrir.style.display = "flex";
 
   irParaTela(3);
 }
 
-async function confirmarSemPagamento() {
+// ─── Sem pagamento ────────────────────────────
+function confirmarSemPagamento() {
   const { id, nome, servico, data, hora } = dadosAgendamento;
-  const dataFmt = data.split("-").reverse().join("/");
-
-  // Monta mensagem com cache local (sem await) e abre WhatsApp imediatamente
+  const dataFmt   = data.split("-").reverse().join("/");
   const numeroWpp = normalizarTel(getCfgLocal("whatsapp", "5582996692302"));
-  const mensagem =
+  const mensagem  =
     `Olá Patricia! Gostaria de confirmar meu agendamento:\n\n` +
     `👤 Nome: ${nome}\n💅 Serviço: ${servico}\n📅 Data: ${dataFmt}\n🕐 Hora: ${hora}`;
   window._wppLink = `https://wa.me/${numeroWpp}?text=${encodeURIComponent(mensagem)}`;
   window.open(window._wppLink, "_blank");
 
-  // Atualiza banco em segundo plano
-  if (id) await dbAtualizarStatus(id, "pendente");
+  if (id) dbAtualizarStatus(id, "pendente");
 
-  document.getElementById("sucesso-texto").textContent =
-    `${servico}\n📅 ${dataFmt} às ${hora}`;
-
+  document.getElementById("sucesso-texto").textContent = `${servico}\n📅 ${dataFmt} às ${hora}`;
   const checklist = document.getElementById("checklist-sucesso");
   if (checklist) {
     checklist.innerHTML = `
@@ -540,7 +531,6 @@ async function confirmarSemPagamento() {
   irParaTela(3);
 }
 
-// Reabre o WhatsApp caso o cliente tenha fechado sem enviar o comprovante
 function reabrirWhatsapp() {
   if (window._wppLink) window.open(window._wppLink, "_blank");
 }
