@@ -482,14 +482,24 @@ async function _atualizarBancoEAvancar(modoPag, valorPago, dataFmt, servico, hor
 
   if (contagemRegressiva) clearInterval(contagemRegressiva);
 
-  // Texto de sucesso resumido
+  // Tela 3 — checklist mostrando o que foi feito
+  const { servico, data, hora } = dadosAgendamento;
+  const dataFmt2 = data.split("-").reverse().join("/");
+
   document.getElementById("sucesso-texto").textContent =
-    `${servico}\n📅 ${dataFmt} às ${hora}` +
+    `${servico}\n📅 ${dataFmt2} às ${hora}` +
     (valorPago > 0 ? `\n💰 R$ ${valorPago.toFixed(2)} enviado via Pix` : "");
 
-  // Mostra checklist e botão de reabrir
   const checklist = document.getElementById("checklist-sucesso");
-  if (checklist) checklist.style.display = "flex";
+  if (checklist) {
+    checklist.innerHTML = `
+      <div class="check-item check-ok">✅ Agendamento registrado no sistema</div>
+      <div class="check-item check-ok">✅ WhatsApp aberto com os dados do pagamento</div>
+      <div class="check-item check-ok" style="background:rgba(110,203,139,0.28);font-weight:600">📎 Envie o <strong>print do comprovante</strong> na conversa aberta</div>
+      <div class="check-item check-pendente">⏳ Patricia confirmará seu horário após verificar</div>`;
+    checklist.style.display = "flex";
+  }
+
   const btnReabrir = document.getElementById("btn-reabrir-wpp");
   if (btnReabrir) btnReabrir.style.display = "flex";
 

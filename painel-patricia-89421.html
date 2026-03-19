@@ -334,10 +334,10 @@
         <input type="date" id="filtro-pag-data" onchange="renderPagamentos()" placeholder="Filtrar por data">
         <select id="filtro-pag-status" onchange="renderPagamentos()">
           <option value="">Todos os status</option>
-          <option value="pendente">Pendente</option>
+          <option value="aguardando">🔵 Aguardando confirmação</option>
           <option value="pago">Pago ✅</option>
-          <option value="expirado">Expirado</option>
-          <option value="cancelado">Cancelado</option>
+          <option value="expirado">Expirado ⏰</option>
+          <option value="cancelado">Cancelado ❌</option>
         </select>
         <button class="btn-secundario" onclick="document.getElementById('filtro-pag-data').value='';document.getElementById('filtro-pag-status').value='';renderPagamentos()">Limpar</button>
       </div>
@@ -908,6 +908,8 @@ iniciar = async function() {
   renderDatasBloqueadas();
   await renderFotos();
   carregarQuemSou();
+  // carrega pagamentos ao iniciar (não precisa esperar clicar na aba)
+  renderPagamentos();
 };
 
 function mostrarCarregando(sim) {
@@ -982,7 +984,7 @@ async function renderAgendamentosDB() {
       ? `<div class="info-linha">💰 Pix: R$ ${Number(a.pix_valor).toFixed(2)} (${a.pagamento || "—"})</div>`
       : "";
 
-    return `<div class="card-agenda status-${st}">
+    return `<div class="card-agenda status-${st}" data-id="${a.id}">
       <div class="cliente-nome">${a.nome}</div>
       <div class="info-linha">💅 ${a.servico}</div>
       <div class="info-linha">📅 ${fmtData(a.data)} às ${a.hora}</div>
@@ -1020,36 +1022,74 @@ function normalizarTel(tel) {
   return "55" + t;
 }
 
+// ── Animação de saída do card ──────────────────
+function removerCardComAnimacao(id, callback) {
+  // tenta encontrar o card pelo data-id primeiro, depois por botão filho
+  const card = document.querySelector(`[data-id="${id}"]`);
+  if (card) {
+    card.style.transition = "all 0.35s ease";
+    card.style.opacity    = "0";
+    card.style.transform  = "scale(0.92)";
+    card.style.maxHeight  = card.offsetHeight + "px";
+    setTimeout(() => {
+      card.style.maxHeight = "0";
+      card.style.padding   = "0";
+      card.style.margin    = "0";
+      card.style.overflow  = "hidden";
+    }, 320);
+    setTimeout(() => { card.remove(); if (callback) callback(); }, 620);
+  } else {
+    // fallback: recarrega tudo
+    if (callback) callback();
+    renderAgendamentosDB();
+  }
+}
+
 async function confirmarDB(id, nome, servico, data, hora, tel) {
-  // Abre o WhatsApp ANTES do await para não ser bloqueado pelo navegador
+  // Abre WhatsApp ANTES de qualquer await
   const msg = (getCfg("msgConfirmacao") || "Olá {nome}! Seu agendamento foi CONFIRMADO. ✅\n\nServiço: {servico}\nData: {data}\nHora: {hora}\n\nSeu horário está garantido! Até lá 💅\n— Patricia Lima")
     .replace("{nome}", nome).replace("{servico}", servico)
     .replace("{data}", fmtData(data)).replace("{hora}", hora);
   const t = normalizarTel(tel);
   if (t) window.open(`https://wa.me/${t}?text=${encodeURIComponent(msg)}`, "_blank");
 
-  // atualiza agendamento
-  await dbAtualizarStatus(id, "confirmado");
+  // Remove card com animação imediatamente
+  removerCardComAnimacao(id, null);
+  toast("Agendamento confirmado! ✅");
 
-  // atualiza histórico de pagamentos se existir
+  // Atualiza banco em segundo plano
+  await dbAtualizarStatus(id, "confirmado");
   await sb.from("pagamentos")
     .update({ status: "pago", pago_em: new Date().toISOString() })
     .eq("agendamento_id", id)
     .neq("status", "pago");
 
-  toast("Agendamento confirmado! ✅");
+  // Atualiza stats e pagamentos silenciosamente
   renderAgendamentosDB();
+  renderPagamentos();
 }
 
 async function cancelarDB(id, nome, servico, data, hora, tel) {
+  // Abre WhatsApp ANTES de qualquer await
   const msg = (getCfg("msgCancelamento") || "Olá {nome}. Infelizmente seu agendamento foi CANCELADO.\n\nServiço: {servico}\nData: {data}\nHora: {hora}\n\nEntre em contato para reagendar.")
     .replace("{nome}", nome).replace("{servico}", servico)
     .replace("{data}", fmtData(data)).replace("{hora}", hora);
   const t = normalizarTel(tel);
   if (t) window.open(`https://wa.me/${t}?text=${encodeURIComponent(msg)}`, "_blank");
-  await dbDeletarAgendamento(id);
+
+  // Remove card com animação imediatamente
+  removerCardComAnimacao(id, null);
   toast("Agendamento cancelado.", true);
+
+  // Atualiza banco em segundo plano
+  await sb.from("pagamentos")
+    .update({ status: "cancelado" })
+    .eq("agendamento_id", id)
+    .neq("status", "pago");
+  await dbDeletarAgendamento(id);
+
   renderAgendamentosDB();
+  renderPagamentos();
 }
 
 // Sobrescreve salvarConfiguracoes para gravar no banco
@@ -1163,75 +1203,156 @@ async function renderPagamentos() {
   const fd = document.getElementById("filtro-pag-data")?.value   || "";
   const fs = document.getElementById("filtro-pag-status")?.value || "";
 
+  // Busca pagamentos com dados do agendamento vinculado
   let query = sb.from("pagamentos")
-    .select("*, agendamentos(nome, telefone, servico, data, hora)")
+    .select("*, agendamentos(id, nome, telefone, servico, data, hora, pagamento)")
     .order("criado_em", { ascending: false });
 
-  if (fs) query = query.eq("status", fs);
+  // O filtro de status precisa mapear "aguardando" → "aguardando_confirmacao"
+  const statusFiltro = fs === "aguardando" ? "aguardando_confirmacao" : fs;
+  if (statusFiltro) query = query.eq("status", statusFiltro);
 
   const { data, error } = await query;
-  if (error) { lista.innerHTML = '<div class="empty-state">Erro ao carregar pagamentos.</div>'; return; }
+
+  // Se a tabela pagamentos não existir ainda, mostra aviso amigável
+  if (error) {
+    lista.innerHTML = `<div class="empty-state" style="color:#7a0000">
+      ⚠️ Tabela de pagamentos não encontrada.<br>
+      <small style="font-size:11px;opacity:.8">Execute o SQL <strong>EXECUTAR_NO_SUPABASE.sql</strong> no painel do Supabase para criar a tabela.</small>
+    </div>`;
+    return;
+  }
 
   let rows = data || [];
 
   // filtra por data do agendamento (se filtro preenchido)
   if (fd) rows = rows.filter(p => p.agendamentos?.data === fd);
 
-  // Stats
-  const total     = rows.length;
-  const pagos     = rows.filter(p => p.status === "pago");
-  const pendentes = rows.filter(p => p.status === "pendente");
-  const recebido  = pagos.reduce((s, p) => s + Number(p.valor_recebido || p.valor || 0), 0);
+  // Stats — usa todos sem filtro de data para os totais
+  const { data: todosRows } = await sb.from("pagamentos").select("status, valor, valor_recebido");
+  const todos_ = todosRows || [];
+  const pagos_     = todos_.filter(p => p.status === "pago");
+  const aguard_    = todos_.filter(p => p.status === "aguardando_confirmacao");
+  const recebido_  = pagos_.reduce((s, p) => s + Number(p.valor_recebido || p.valor || 0), 0);
 
   statsEl.innerHTML = `
-    <div class="stat-box"><div class="num">${total}</div><div class="leg">Total</div></div>
-    <div class="stat-box"><div class="num">${pagos.length}</div><div class="leg">Pagos ✅</div></div>
-    <div class="stat-box"><div class="num">${pendentes.length}</div><div class="leg">Pendentes</div></div>
-    <div class="stat-box"><div class="num">R$ ${recebido.toFixed(2)}</div><div class="leg">Recebido</div></div>`;
+    <div class="stat-box"><div class="num">${todos_.length}</div><div class="leg">Total</div></div>
+    <div class="stat-box"><div class="num">${pagos_.length}</div><div class="leg">Confirmados ✅</div></div>
+    <div class="stat-box"><div class="num">${aguard_.length}</div><div class="leg">🔵 Aguard. confirm.</div></div>
+    <div class="stat-box"><div class="num" style="font-size:18px">R$ ${recebido_.toFixed(2)}</div><div class="leg">Recebido</div></div>`;
 
   if (!rows.length) {
     lista.innerHTML = '<div class="empty-state">Nenhum pagamento encontrado.</div>';
     return;
   }
 
-  const icones = { pago: "✅", pendente: "⏳", expirado: "⏰", cancelado: "❌" };
-  const labels = { pago: "Pago", pendente: "Aguardando", expirado: "Expirado", cancelado: "Cancelado" };
+  const icones = {
+    pago: "✅",
+    aguardando_confirmacao: "🔵",
+    pendente: "⏳",
+    expirado: "⏰",
+    cancelado: "❌"
+  };
+  const labels = {
+    pago: "Pago ✅",
+    aguardando_confirmacao: "Aguardando confirmação 🔵",
+    pendente: "Pendente ⏳",
+    expirado: "Expirado ⏰",
+    cancelado: "Cancelado ❌"
+  };
+  const badgeMap = {
+    pago: "confirmado",
+    aguardando_confirmacao: "aguardando_confirmacao",
+    pendente: "pendente",
+    expirado: "expirado",
+    cancelado: "cancelado"
+  };
 
   lista.innerHTML = rows.map(p => {
     const ag      = p.agendamentos || {};
     const dataFmt = ag.data ? ag.data.split("-").reverse().join("/") : "—";
-    const pagoEm  = p.pago_em  ? new Date(p.pago_em).toLocaleString("pt-BR")  : "—";
-    const criadoEm= p.criado_em? new Date(p.criado_em).toLocaleString("pt-BR"): "—";
+    const pagoEm  = p.pago_em   ? new Date(p.pago_em).toLocaleString("pt-BR")   : null;
+    const criadoEm= p.criado_em ? new Date(p.criado_em).toLocaleString("pt-BR") : "—";
     const st      = p.status || "pendente";
     const valor   = p.valor_recebido || p.valor || 0;
+    const agId    = ag.id || p.agendamento_id;
+    const modoPag = ag.pagamento || "";
+
+    // Mostra botão "Confirmar pagamento" apenas para status aguardando
+    const btnConfirmar = (st === "aguardando_confirmacao" && agId)
+      ? `<button onclick="confirmarPagamentoDB('${p.id}','${agId}','${ag.nome||""}','${ag.servico||""}','${ag.data||""}','${ag.hora||""}','${ag.telefone||""}')"
+           style="margin-top:8px;padding:8px 16px;background:#6ecb8b;color:white;border:none;border-radius:20px;font-size:12px;font-family:Poppins,sans-serif;cursor:pointer;font-weight:500">
+           ✅ Confirmar pagamento recebido
+         </button>`
+      : "";
 
     return `
-      <div class="pag-card status-${st}">
+      <div class="pag-card status-${st}" data-pag-id="${p.id}">
         <div class="pag-icone">${icones[st] || "💳"}</div>
-        <div class="pag-info">
+        <div class="pag-info" style="flex:1">
           <div class="pag-nome">${ag.nome || "—"}</div>
           <div class="pag-detalhe">💅 ${ag.servico || "—"} &nbsp;|&nbsp; 📅 ${dataFmt} às ${ag.hora || "—"}</div>
-          <div class="pag-detalhe">📱 ${ag.telefone || "—"}</div>
+          <div class="pag-detalhe">📱 ${ag.telefone || "—"}${modoPag ? ` &nbsp;|&nbsp; 💳 ${modoPag}` : ""}</div>
           <div class="pag-detalhe" style="margin-top:4px">
-            <span class="status-badge badge-${st === 'pago' ? 'confirmado' : st === 'pendente' ? 'pendente' : 'cancelado'}">${labels[st] || st}</span>
-            &nbsp; Gerado: ${criadoEm}
-            ${p.pago_em ? `&nbsp;|&nbsp; Pago: ${pagoEm}` : ""}
+            <span class="status-badge badge-${badgeMap[st] || "pendente"}">${labels[st] || st}</span>
+            &nbsp; Enviado: ${criadoEm}
+            ${pagoEm ? `&nbsp;|&nbsp; Confirmado: ${pagoEm}` : ""}
           </div>
-          ${p.txid ? `<div class="pag-detalhe" style="font-size:10px;opacity:.6">txid: ${p.txid}</div>` : ""}
+          ${btnConfirmar}
         </div>
         <div class="pag-valor">
           R$ ${Number(valor).toFixed(2)}
-          <span>${p.status === "pago" ? "recebido" : "esperado"}</span>
+          <span>${st === "pago" ? "recebido" : "esperado"}</span>
         </div>
       </div>`;
   }).join("");
 }
 
-// Carrega pagamentos quando muda para a aba
+// Confirma o pagamento recebido — remove card com animação e abre WhatsApp
+async function confirmarPagamentoDB(pagId, agId, nome, servico, data, hora, tel) {
+  // Abre WhatsApp ANTES de qualquer await
+  const msg = (getCfg("msgConfirmacao") || "Olá {nome}! Seu agendamento foi CONFIRMADO. ✅\n\nServiço: {servico}\nData: {data}\nHora: {hora}\n\nSeu horário está garantido! Até lá 💅\n— Patricia Lima")
+    .replace("{nome}", nome).replace("{servico}", servico)
+    .replace("{data}", fmtData(data)).replace("{hora}", hora);
+  const t = normalizarTel(tel);
+  if (t) window.open(`https://wa.me/${t}?text=${encodeURIComponent(msg)}`, "_blank");
+
+  // Remove card de pagamento com animação
+  const pagCard = document.querySelector(`[data-pag-id="${pagId}"]`);
+  if (pagCard) {
+    pagCard.style.transition = "all 0.35s ease";
+    pagCard.style.opacity    = "0";
+    pagCard.style.transform  = "scale(0.92)";
+    setTimeout(() => {
+      pagCard.style.maxHeight = "0";
+      pagCard.style.padding   = "0";
+      pagCard.style.margin    = "0";
+      pagCard.style.overflow  = "hidden";
+    }, 320);
+    setTimeout(() => pagCard.remove(), 620);
+  }
+
+  toast("Pagamento confirmado e agendamento atualizado! ✅");
+
+  // Atualiza banco em segundo plano
+  await sb.from("pagamentos").update({
+    status: "pago",
+    pago_em: new Date().toISOString()
+  }).eq("id", pagId);
+
+  await dbAtualizarStatus(agId, "confirmado");
+
+  // Atualiza as duas abas silenciosamente
+  renderAgendamentosDB();
+  renderPagamentos();
+}
+
+// Carrega pagamentos quando muda para a aba (atualiza sempre que abre)
 const _mudarAbaOriginal = mudarAba;
 mudarAba = function(id, btn) {
   _mudarAbaOriginal(id, btn);
   if (id === "pagamentos") renderPagamentos();
+  if (id === "agendamentos") renderAgendamentosDB();
 };
 </script>
 
