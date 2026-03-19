@@ -4,16 +4,16 @@
 -- ══════════════════════════════════════════════════════════════
 
 -- 1. Adiciona colunas novas na tabela agendamentos
---    (IF NOT EXISTS evita erro se já existir)
 ALTER TABLE agendamentos
   ADD COLUMN IF NOT EXISTS reservado_ate  TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS pix_valor      NUMERIC(10,2),
   ADD COLUMN IF NOT EXISTS pix_status     TEXT DEFAULT 'pendente';
 
--- 2. Cria tabela de histórico de pagamentos
+-- 2. Cria tabela de pagamentos com UUID (compatível com o Supabase)
+--    O Supabase usa UUID como tipo do id por padrão
 CREATE TABLE IF NOT EXISTS pagamentos (
-  id              BIGSERIAL PRIMARY KEY,
-  agendamento_id  BIGINT REFERENCES agendamentos(id) ON DELETE SET NULL,
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agendamento_id  UUID REFERENCES agendamentos(id) ON DELETE SET NULL,
   valor           NUMERIC(10,2),
   valor_recebido  NUMERIC(10,2),
   status          TEXT DEFAULT 'aguardando_confirmacao',
@@ -24,14 +24,12 @@ CREATE TABLE IF NOT EXISTS pagamentos (
 );
 
 -- 3. Índices para performance
-CREATE INDEX IF NOT EXISTS idx_pagamentos_status     ON pagamentos(status);
+CREATE INDEX IF NOT EXISTS idx_pagamentos_status      ON pagamentos(status);
 CREATE INDEX IF NOT EXISTS idx_agendamentos_reservado ON agendamentos(reservado_ate);
 CREATE INDEX IF NOT EXISTS idx_agendamentos_status    ON agendamentos(status);
 
--- 4. Permissões (obrigatório para o site conseguir ler/escrever)
+-- 4. Permissões para o site conseguir ler e escrever
 GRANT SELECT, INSERT, UPDATE ON pagamentos TO anon;
 GRANT SELECT, INSERT, UPDATE ON pagamentos TO authenticated;
-GRANT USAGE, SELECT ON SEQUENCE pagamentos_id_seq TO anon;
-GRANT USAGE, SELECT ON SEQUENCE pagamentos_id_seq TO authenticated;
 
 -- ✅ Pronto! Após executar, o site funcionará sem erros.
