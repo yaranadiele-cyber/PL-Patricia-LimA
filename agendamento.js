@@ -51,11 +51,12 @@ async function carregarServicos() {
   const servicos = servicosCompletos?.length
     ? servicosCompletos
     : await dbGetConfig("servicos", getCfgLocal("servicos", defaultServicos));
-  select.innerHTML = servicos.map(s =>
-    `<option value="${s.nome}" data-preco="${s.preco || 0}">
-      ${s.nome}${s.preco ? " — R$ " + Number(s.preco).toFixed(2) : ""}
-    </option>`
-  ).join("");
+  select.innerHTML = servicos.map(s => {
+    const nome  = (s.nome  || "").trim();
+    const preco = s.preco  || 0;
+    const label = nome + (preco ? ` — R$ ${Number(preco).toFixed(2)}` : "");
+    return `<option value="${nome}" data-preco="${preco}">${label}</option>`;
+  }).join("");
 }
 
 // ─── Horários — Grade Visual ─────────────────
@@ -173,12 +174,13 @@ async function irParaPagamento() {
   const nome      = document.getElementById("nome").value.trim();
   const telefone  = document.getElementById("telefone").value.trim();
   const servicoEl = document.getElementById("servico");
-  const servico   = servicoEl.value;
-  const preco     = parseFloat(servicoEl.selectedOptions[0]?.dataset.preco || 0);
+  const servico   = (servicoEl.value || "").trim();
+  const precoRaw  = servicoEl.selectedOptions[0]?.getAttribute("data-preco") || "0";
+  const preco     = parseFloat(precoRaw) || 0;
   const data      = document.getElementById("data").value;
   const hora      = document.getElementById("hora").value;
 
-  if (!nome || !telefone || !data) {
+  if (!nome || !telefone || !data || !servico) {
     alert("Preencha todos os campos antes de continuar.");
     return;
   }
