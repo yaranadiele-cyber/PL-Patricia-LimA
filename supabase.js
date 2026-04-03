@@ -1,8 +1,8 @@
 // ═══════════════════════════════════════════════
 //  SUPABASE CONFIG
 // ═══════════════════════════════════════════════
-const SUPABASE_URL  = "https://oenrdiuphuynpwbjxlul.supabase.co";
-const SUPABASE_KEY  = "sb_publishable_xu5E3R8SM_nL_ApFESHAyg_fpV7Lmri";
+const SUPABASE_URL  = "https://brikbjmzcmmdmemolobs.supabase.co";
+const SUPABASE_KEY  = "sb_publishable_l7rc-j1GsAjQEpMQXGGiww_CMSudrve";
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
