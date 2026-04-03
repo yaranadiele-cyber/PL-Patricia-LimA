@@ -54,17 +54,14 @@ async function carregarServicos() {
   const select = document.getElementById("servico");
   if (!select) return;
 
-  // Mostra loading
   select.innerHTML = '<option value="">Carregando serviços...</option>';
 
   let servicos = [];
   try {
-    // Tenta buscar servicosCompletos primeiro
     const completos = await dbGetConfig("servicosCompletos", null);
     if (completos && Array.isArray(completos) && completos.length > 0) {
       servicos = completos;
     } else {
-      // Tenta servicosBasicos
       const basicos = await dbGetConfig("servicos", null);
       if (basicos && Array.isArray(basicos) && basicos.length > 0) {
         servicos = basicos;
@@ -74,20 +71,13 @@ async function carregarServicos() {
     console.warn("Erro ao buscar serviços do banco:", e);
   }
 
-  // Se ainda vazio, tenta localStorage
   if (!servicos.length) {
     const local = getCfgLocal("servicosCompletos", null) || getCfgLocal("servicos", null);
-    if (local && Array.isArray(local) && local.length > 0) {
-      servicos = local;
-    }
+    if (local && Array.isArray(local) && local.length > 0) servicos = local;
   }
 
-  // Último recurso: padrão fixo
-  if (!servicos.length) {
-    servicos = SERVICOS_PADRAO;
-  }
+  if (!servicos.length) servicos = SERVICOS_PADRAO;
 
-  // Monta as opções — tudo numa linha, sem espaços extras no value
   select.innerHTML = servicos.map(s => {
     const nome  = String(s.nome  || "").trim();
     const preco = parseFloat(s.preco) || 0;
@@ -193,6 +183,10 @@ function selecionarHorario(h) {
 document.addEventListener("DOMContentLoaded", () => {
   const dataInput = document.getElementById("data");
   if (dataInput) dataInput.addEventListener("change", carregarHorarios);
+
+  // Define data mínima como hoje
+  const hoje = new Date().toISOString().split("T")[0];
+  if (dataInput) dataInput.min = hoje;
 });
 
 // ═══════════════════════════════════════════════
@@ -245,7 +239,7 @@ async function irParaPagamento() {
     return;
   }
 
-  dadosAgendamento = { id: ag.id, nome, telefone, servico, preco, data, hora };
+  dadosAgendamento = { id: ag.id, nome, telefone: normalizarTel(telefone), servico, preco, data, hora };
 
   const dataFmt = data.split("-").reverse().join("/");
   document.getElementById("resumo").innerHTML = `
@@ -260,13 +254,13 @@ async function irParaPagamento() {
 
   pagamentoSelecionado = null;
 
-  // Muda para tela 2 ANTES de manipular elementos dela
   irParaTela(2);
   iniciarContagemRegressiva(reservadoAte);
 
   document.getElementById("pix-info").style.display = "none";
   esconderBtnPaguei();
 
+  // Modo 0 = sem pagamento antecipado
   if (modoEntrada === "0") {
     if (contagemRegressiva) clearInterval(contagemRegressiva);
     const timerEl = document.getElementById("timer-reserva");
@@ -383,7 +377,6 @@ async function selecionarPagamento(opcao) {
   const preco    = dadosAgendamento.preco || 0;
   const valorPix = opcao === "50" ? preco / 2 : opcao === "30" ? preco * 0.3 : preco;
 
-  // Busca configs e salva em localStorage para uso síncrono no clique "Já paguei"
   const pixChave = await dbGetConfig("pixChave", getCfgLocal("pixChave", ""));
   const pixNome  = await dbGetConfig("pixNome",  getCfgLocal("pixNome",  "Patricia Lima"));
   const whatsapp = await dbGetConfig("whatsapp", getCfgLocal("whatsapp", "5582996692302"));
@@ -412,7 +405,6 @@ function copiarChave() {
     const btn = document.querySelector(".btn-copiar");
     if (btn) { btn.textContent = "✅ Copiado!"; setTimeout(() => { btn.textContent = "📋 Copiar"; }, 2000); }
   }).catch(() => {
-    // fallback para navegadores sem clipboard API
     const el = document.createElement("textarea");
     el.value = chave; document.body.appendChild(el);
     el.select(); document.execCommand("copy"); document.body.removeChild(el);
@@ -422,7 +414,7 @@ function copiarChave() {
 }
 
 // ═══════════════════════════════════════════════
-//  JÁ PAGUEI — window.open ANTES de qualquer await
+//  JÁ PAGUEI — abre WhatsApp do CLIENTE e notifica PATRICIA
 // ═══════════════════════════════════════════════
 function finalizarAgendamento() {
   if (!pagamentoSelecionado) { alert("Selecione uma opção de pagamento."); return; }
@@ -443,7 +435,7 @@ function finalizarAgendamento() {
   const numeroWpp = normalizarTel(getCfgLocal("whatsapp", "5582996692302"));
   const pixChave  = getCfgLocal("pixChave", "");
 
-  // Mensagem que o CLIENTE envia (com o comprovante)
+  // Mensagem que o CLIENTE envia com o comprovante
   const mensagemCliente =
     `Olá Patricia! 👋 Realizei o agendamento e já efetuei o pagamento via Pix.\n\n` +
     `👤 Nome: ${nome}\n💅 Serviço: ${servico}\n📅 Data: ${dataFmt}\n🕐 Hora: ${hora}` +
@@ -451,30 +443,22 @@ function finalizarAgendamento() {
     (pixChave ? `\n📲 Chave Pix: ${pixChave}` : "") +
     `\n\n📎 Comprovante em anexo 👇\n_(envie o print aqui)_`;
 
-  const linkCliente = `https://wa.me/${numeroWpp}?text=${encodeURIComponent(mensagemCliente)}`;
-  window._wppLink = linkCliente;
+  window._wppLink = `https://wa.me/${numeroWpp}?text=${encodeURIComponent(mensagemCliente)}`;
 
-  // Abre WhatsApp para o CLIENTE enviar comprovante — sem nenhum await antes
-  window.open(linkCliente, "_blank");
+  // Abre WhatsApp do cliente IMEDIATAMENTE (sem await)
+  window.open(window._wppLink, "_blank");
 
-  // Notificação para PATRICIA: abre em segundo plano após breve delay
-  // para não bloquear o popup principal
-  const telCliente = telefone ? ` | 📱 Tel: ${telefone}` : "";
+  // Notificação para PATRICIA após 1.5s
+  const telCliente = telefone ? ` | 📱 ${telefone}` : "";
   const mensagemPatricia =
-    `🔔 *NOVO AGENDAMENTO — aguardando sua confirmação!*\n\n` +
-    `👤 Cliente: ${nome}${telCliente}\n` +
-    `💅 Serviço: ${servico}\n` +
-    `📅 Data: ${dataFmt}\n` +
-    `🕐 Hora: ${hora}` +
+    `🔔 *NOVO AGENDAMENTO — confirme no painel!*\n\n` +
+    `👤 ${nome}${telCliente}\n` +
+    `💅 ${servico}\n📅 ${dataFmt} às ${hora}` +
     linhaPag +
-    `\n\n✅ Confirme ou cancele o agendamento no seu painel.`;
+    `\n\n✅ Acesse o painel para confirmar.`;
 
   window._wppPatriciaLink = `https://wa.me/${numeroWpp}?text=${encodeURIComponent(mensagemPatricia)}`;
-
-  // Abre a notificação para Patricia após 1.5s
-  setTimeout(() => {
-    window.open(window._wppPatriciaLink, "_blank");
-  }, 1500);
+  setTimeout(() => { window.open(window._wppPatriciaLink, "_blank"); }, 1500);
 
   const btn = document.getElementById("btn-ja-paguei");
   if (btn) { btn.disabled = true; btn.textContent = "✅ WhatsApp aberto!"; }
@@ -486,6 +470,7 @@ function finalizarAgendamento() {
 async function _salvarPagamentoNoBanco(modoPag, valorPago, dataFmt, servico, hora) {
   const { id } = dadosAgendamento;
   if (id) {
+    // Tenta atualizar com pix_valor, fallback sem ele
     const { error } = await sb.from("agendamentos").update({
       status: "aguardando_confirmacao", pagamento: modoPag, pix_valor: valorPago
     }).eq("id", id);
@@ -494,18 +479,21 @@ async function _salvarPagamentoNoBanco(modoPag, valorPago, dataFmt, servico, hor
         status: "aguardando_confirmacao", pagamento: modoPag
       }).eq("id", id);
     }
+    // Tenta inserir na tabela pagamentos (pode não existir ainda)
     await sb.from("pagamentos").upsert([{
-      agendamento_id: id, valor: valorPago,
-      status: "aguardando_confirmacao",
-      descricao: `${servico} - ${dataFmt} às ${hora}`,
-      criado_em: new Date().toISOString()
+      agendamento_id: id,
+      valor:          valorPago,
+      status:         "aguardando_confirmacao",
+      descricao:      `${servico} - ${dataFmt} às ${hora}`,
+      criado_em:      new Date().toISOString()
     }], { onConflict: "agendamento_id" }).catch(e => console.warn("pagamentos:", e));
   }
   if (contagemRegressiva) clearInterval(contagemRegressiva);
 
   const { servico: sv, data, hora: hr } = dadosAgendamento;
   const df = data.split("-").reverse().join("/");
-  document.getElementById("sucesso-texto").textContent =
+  const sucEl = document.getElementById("sucesso-texto");
+  if (sucEl) sucEl.textContent =
     `${sv}\n📅 ${df} às ${hr}` + (valorPago > 0 ? `\n💰 R$ ${valorPago.toFixed(2)} enviado via Pix` : "");
 
   const checklist = document.getElementById("checklist-sucesso");
@@ -523,7 +511,7 @@ async function _salvarPagamentoNoBanco(modoPag, valorPago, dataFmt, servico, hor
   irParaTela(3);
 }
 
-// ─── Sem pagamento ────────────────────────────
+// ─── Sem pagamento antecipado ────────────────
 function confirmarSemPagamento() {
   const { id, nome, telefone, servico, data, hora } = dadosAgendamento;
   const dataFmt   = data.split("-").reverse().join("/");
@@ -537,20 +525,20 @@ function confirmarSemPagamento() {
   window.open(window._wppLink, "_blank");
 
   // Notificação para PATRICIA
-  const telCliente = telefone ? ` | 📱 Tel: ${telefone}` : "";
+  const telCliente = telefone ? ` | 📱 ${telefone}` : "";
   const mensagemPatricia =
-    `🔔 *NOVO AGENDAMENTO — aguardando sua confirmação!*\n\n` +
-    `👤 Cliente: ${nome}${telCliente}\n` +
-    `💅 Serviço: ${servico}\n` +
-    `📅 Data: ${dataFmt}\n` +
-    `🕐 Hora: ${hora}\n\n` +
-    `✅ Confirme ou cancele o agendamento no seu painel.`;
+    `🔔 *NOVO AGENDAMENTO — confirme no painel!*\n\n` +
+    `👤 ${nome}${telCliente}\n` +
+    `💅 ${servico}\n📅 ${dataFmt} às ${hora}\n\n` +
+    `✅ Acesse o painel para confirmar.`;
   window._wppPatriciaLink = `https://wa.me/${numeroWpp}?text=${encodeURIComponent(mensagemPatricia)}`;
   setTimeout(() => { window.open(window._wppPatriciaLink, "_blank"); }, 1500);
 
   if (id) dbAtualizarStatus(id, "pendente");
 
-  document.getElementById("sucesso-texto").textContent = `${servico}\n📅 ${dataFmt} às ${hora}`;
+  const sucEl = document.getElementById("sucesso-texto");
+  if (sucEl) sucEl.textContent = `${servico}\n📅 ${dataFmt} às ${hora}`;
+
   const checklist = document.getElementById("checklist-sucesso");
   if (checklist) {
     checklist.innerHTML = `
@@ -570,7 +558,7 @@ function reabrirWhatsapp() {
 }
 
 // ═══════════════════════════════════════════════
-//  NAVEGAÇÃO
+//  NAVEGAÇÃO ENTRE TELAS
 // ═══════════════════════════════════════════════
 function irParaTela(n) {
   document.querySelectorAll(".tela").forEach(t => t.classList.remove("ativa"));
