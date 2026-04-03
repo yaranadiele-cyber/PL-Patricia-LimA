@@ -427,7 +427,7 @@ function copiarChave() {
 function finalizarAgendamento() {
   if (!pagamentoSelecionado) { alert("Selecione uma opção de pagamento."); return; }
 
-  const { nome, servico, data, hora, preco } = dadosAgendamento;
+  const { nome, telefone, servico, data, hora, preco } = dadosAgendamento;
   const modoPag   = pagamentoSelecionado;
   const valorPago = modoPag === "50" ? preco / 2 : modoPag === "30" ? preco * 0.3 : preco;
   const dataFmt   = data.split("-").reverse().join("/");
@@ -443,18 +443,38 @@ function finalizarAgendamento() {
   const numeroWpp = normalizarTel(getCfgLocal("whatsapp", "5582996692302"));
   const pixChave  = getCfgLocal("pixChave", "");
 
-  const mensagem =
+  // Mensagem que o CLIENTE envia (com o comprovante)
+  const mensagemCliente =
     `Olá Patricia! 👋 Realizei o agendamento e já efetuei o pagamento via Pix.\n\n` +
     `👤 Nome: ${nome}\n💅 Serviço: ${servico}\n📅 Data: ${dataFmt}\n🕐 Hora: ${hora}` +
     linhaPag +
     (pixChave ? `\n📲 Chave Pix: ${pixChave}` : "") +
     `\n\n📎 Comprovante em anexo 👇\n_(envie o print aqui)_`;
 
-  const link = `https://wa.me/${numeroWpp}?text=${encodeURIComponent(mensagem)}`;
-  window._wppLink = link;
+  const linkCliente = `https://wa.me/${numeroWpp}?text=${encodeURIComponent(mensagemCliente)}`;
+  window._wppLink = linkCliente;
 
-  // Abre WhatsApp AGORA — sem nenhum await antes
-  window.open(link, "_blank");
+  // Abre WhatsApp para o CLIENTE enviar comprovante — sem nenhum await antes
+  window.open(linkCliente, "_blank");
+
+  // Notificação para PATRICIA: abre em segundo plano após breve delay
+  // para não bloquear o popup principal
+  const telCliente = telefone ? ` | 📱 Tel: ${telefone}` : "";
+  const mensagemPatricia =
+    `🔔 *NOVO AGENDAMENTO — aguardando sua confirmação!*\n\n` +
+    `👤 Cliente: ${nome}${telCliente}\n` +
+    `💅 Serviço: ${servico}\n` +
+    `📅 Data: ${dataFmt}\n` +
+    `🕐 Hora: ${hora}` +
+    linhaPag +
+    `\n\n✅ Confirme ou cancele o agendamento no seu painel.`;
+
+  window._wppPatriciaLink = `https://wa.me/${numeroWpp}?text=${encodeURIComponent(mensagemPatricia)}`;
+
+  // Abre a notificação para Patricia após 1.5s
+  setTimeout(() => {
+    window.open(window._wppPatriciaLink, "_blank");
+  }, 1500);
 
   const btn = document.getElementById("btn-ja-paguei");
   if (btn) { btn.disabled = true; btn.textContent = "✅ WhatsApp aberto!"; }
@@ -505,14 +525,28 @@ async function _salvarPagamentoNoBanco(modoPag, valorPago, dataFmt, servico, hor
 
 // ─── Sem pagamento ────────────────────────────
 function confirmarSemPagamento() {
-  const { id, nome, servico, data, hora } = dadosAgendamento;
+  const { id, nome, telefone, servico, data, hora } = dadosAgendamento;
   const dataFmt   = data.split("-").reverse().join("/");
   const numeroWpp = normalizarTel(getCfgLocal("whatsapp", "5582996692302"));
-  const mensagem  =
+
+  // Mensagem do CLIENTE
+  const mensagemCliente =
     `Olá Patricia! Gostaria de confirmar meu agendamento:\n\n` +
     `👤 Nome: ${nome}\n💅 Serviço: ${servico}\n📅 Data: ${dataFmt}\n🕐 Hora: ${hora}`;
-  window._wppLink = `https://wa.me/${numeroWpp}?text=${encodeURIComponent(mensagem)}`;
+  window._wppLink = `https://wa.me/${numeroWpp}?text=${encodeURIComponent(mensagemCliente)}`;
   window.open(window._wppLink, "_blank");
+
+  // Notificação para PATRICIA
+  const telCliente = telefone ? ` | 📱 Tel: ${telefone}` : "";
+  const mensagemPatricia =
+    `🔔 *NOVO AGENDAMENTO — aguardando sua confirmação!*\n\n` +
+    `👤 Cliente: ${nome}${telCliente}\n` +
+    `💅 Serviço: ${servico}\n` +
+    `📅 Data: ${dataFmt}\n` +
+    `🕐 Hora: ${hora}\n\n` +
+    `✅ Confirme ou cancele o agendamento no seu painel.`;
+  window._wppPatriciaLink = `https://wa.me/${numeroWpp}?text=${encodeURIComponent(mensagemPatricia)}`;
+  setTimeout(() => { window.open(window._wppPatriciaLink, "_blank"); }, 1500);
 
   if (id) dbAtualizarStatus(id, "pendente");
 

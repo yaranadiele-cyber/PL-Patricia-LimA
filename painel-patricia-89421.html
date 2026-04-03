@@ -1191,121 +1191,198 @@ salvarQuemSou = async function() {
 };
 
 // ═══════════════════════════════════════════════
-//  ABA PAGAMENTOS
+//  ABA PAGAMENTOS — versão corrigida
 // ═══════════════════════════════════════════════
 async function renderPagamentos() {
-  const lista  = document.getElementById("lista-pagamentos");
+  const lista   = document.getElementById("lista-pagamentos");
   const statsEl = document.getElementById("stats-pag");
   if (!lista) return;
 
-  lista.innerHTML = '<div class="empty-state">Carregando...</div>';
+  lista.innerHTML = '<div class="empty-state">⏳ Carregando pagamentos...</div>';
+  if (statsEl) statsEl.innerHTML = "";
 
   const fd = document.getElementById("filtro-pag-data")?.value   || "";
   const fs = document.getElementById("filtro-pag-status")?.value || "";
-
-  // Busca pagamentos com dados do agendamento vinculado
-  let query = sb.from("pagamentos")
-    .select("*, agendamentos(id, nome, telefone, servico, data, hora, pagamento)")
-    .order("criado_em", { ascending: false });
-
-  // O filtro de status precisa mapear "aguardando" → "aguardando_confirmacao"
   const statusFiltro = fs === "aguardando" ? "aguardando_confirmacao" : fs;
-  if (statusFiltro) query = query.eq("status", statusFiltro);
 
-  const { data, error } = await query;
+  // ── Estratégia 1: busca pagamentos com JOIN nos agendamentos ──
+  let rows = [];
+  let erroTabela = false;
 
-  // Se a tabela pagamentos não existir ainda, mostra aviso amigável
-  if (error) {
-    lista.innerHTML = `<div class="empty-state" style="color:#7a0000">
-      ⚠️ Tabela de pagamentos não encontrada.<br>
-      <small style="font-size:11px;opacity:.8">Execute o SQL <strong>EXECUTAR_NO_SUPABASE.sql</strong> no painel do Supabase para criar a tabela.</small>
-    </div>`;
+  try {
+    let query = sb.from("pagamentos")
+      .select("*, agendamentos(id, nome, telefone, servico, data, hora, pagamento, pix_valor)")
+      .order("criado_em", { ascending: false });
+    if (statusFiltro) query = query.eq("status", statusFiltro);
+
+    const { data, error } = await query;
+
+    if (error) {
+      // erro de tabela inexistente ou relação
+      const msg = error?.message || "";
+      if (msg.includes("relation") || msg.includes("does not exist") || error?.code === "42P01" || error?.code === "PGRST200") {
+        erroTabela = true;
+      } else {
+        console.warn("Erro pagamentos JOIN:", error);
+        // Tenta busca simples sem JOIN
+        const { data: d2, error: e2 } = await sb.from("pagamentos")
+          .select("*").order("criado_em", { ascending: false });
+        if (e2) { erroTabela = true; } else { rows = d2 || []; }
+      }
+    } else {
+      rows = data || [];
+    }
+  } catch(e) {
+    console.warn("Exceção pagamentos:", e);
+    erroTabela = true;
+  }
+
+  // ── Se tabela não existe: mostra fallback usando agendamentos ──
+  if (erroTabela) {
+    await _renderPagamentosFallback(lista, statsEl, fd, statusFiltro);
     return;
   }
 
-  let rows = data || [];
+  // Filtra por data do agendamento (client-side)
+  if (fd) rows = rows.filter(p => (p.agendamentos?.data || "") === fd);
 
-  // filtra por data do agendamento (se filtro preenchido)
-  if (fd) rows = rows.filter(p => p.agendamentos?.data === fd);
-
-  // Stats — usa todos sem filtro de data para os totais
-  const { data: todosRows } = await sb.from("pagamentos").select("status, valor, valor_recebido");
-  const todos_ = todosRows || [];
-  const pagos_     = todos_.filter(p => p.status === "pago");
-  const aguard_    = todos_.filter(p => p.status === "aguardando_confirmacao");
-  const recebido_  = pagos_.reduce((s, p) => s + Number(p.valor_recebido || p.valor || 0), 0);
-
-  statsEl.innerHTML = `
-    <div class="stat-box"><div class="num">${todos_.length}</div><div class="leg">Total</div></div>
-    <div class="stat-box"><div class="num">${pagos_.length}</div><div class="leg">Confirmados ✅</div></div>
-    <div class="stat-box"><div class="num">${aguard_.length}</div><div class="leg">🔵 Aguard. confirm.</div></div>
-    <div class="stat-box"><div class="num" style="font-size:18px">R$ ${recebido_.toFixed(2)}</div><div class="leg">Recebido</div></div>`;
+  // ── Stats ──
+  try {
+    const { data: todosRows } = await sb.from("pagamentos").select("status, valor, valor_recebido");
+    const todos_ = todosRows || [];
+    const pagos_    = todos_.filter(p => p.status === "pago");
+    const aguard_   = todos_.filter(p => p.status === "aguardando_confirmacao");
+    const recebido_ = pagos_.reduce((s, p) => s + Number(p.valor_recebido || p.valor || 0), 0);
+    if (statsEl) statsEl.innerHTML = `
+      <div class="stat-box"><div class="num">${todos_.length}</div><div class="leg">Total</div></div>
+      <div class="stat-box"><div class="num">${pagos_.length}</div><div class="leg">Confirmados ✅</div></div>
+      <div class="stat-box"><div class="num">${aguard_.length}</div><div class="leg">🔵 Aguard. confirm.</div></div>
+      <div class="stat-box"><div class="num" style="font-size:18px">R$ ${recebido_.toFixed(2)}</div><div class="leg">Recebido</div></div>`;
+  } catch(e) {}
 
   if (!rows.length) {
     lista.innerHTML = '<div class="empty-state">Nenhum pagamento encontrado.</div>';
     return;
   }
 
-  const icones = {
-    pago: "✅",
-    aguardando_confirmacao: "🔵",
-    pendente: "⏳",
-    expirado: "⏰",
-    cancelado: "❌"
-  };
-  const labels = {
-    pago: "Pago ✅",
-    aguardando_confirmacao: "Aguardando confirmação 🔵",
-    pendente: "Pendente ⏳",
-    expirado: "Expirado ⏰",
-    cancelado: "Cancelado ❌"
-  };
-  const badgeMap = {
-    pago: "confirmado",
-    aguardando_confirmacao: "aguardando_confirmacao",
-    pendente: "pendente",
-    expirado: "expirado",
-    cancelado: "cancelado"
-  };
+  lista.innerHTML = rows.map(p => _htmlCardPagamento(p, p.agendamentos || {})).join("");
+}
 
-  lista.innerHTML = rows.map(p => {
-    const ag      = p.agendamentos || {};
-    const dataFmt = ag.data ? ag.data.split("-").reverse().join("/") : "—";
-    const pagoEm  = p.pago_em   ? new Date(p.pago_em).toLocaleString("pt-BR")   : null;
-    const criadoEm= p.criado_em ? new Date(p.criado_em).toLocaleString("pt-BR") : "—";
-    const st      = p.status || "pendente";
-    const valor   = p.valor_recebido || p.valor || 0;
-    const agId    = ag.id || p.agendamento_id;
-    const modoPag = ag.pagamento || "";
+// Fallback: quando tabela pagamentos não existe, usa a tabela agendamentos
+async function _renderPagamentosFallback(lista, statsEl, fd, statusFiltro) {
+  try {
+    let query = sb.from("agendamentos")
+      .select("*")
+      .in("status", ["aguardando_confirmacao", "confirmado", "pendente", "reservado"])
+      .order("data", { ascending: false });
+    if (fd) query = query.eq("data", fd);
 
-    // Mostra botão "Confirmar pagamento" apenas para status aguardando
-    const btnConfirmar = (st === "aguardando_confirmacao" && agId)
-      ? `<button onclick="confirmarPagamentoDB('${p.id}','${agId}','${ag.nome||""}','${ag.servico||""}','${ag.data||""}','${ag.hora||""}','${ag.telefone||""}')"
-           style="margin-top:8px;padding:8px 16px;background:#6ecb8b;color:white;border:none;border-radius:20px;font-size:12px;font-family:Poppins,sans-serif;cursor:pointer;font-weight:500">
-           ✅ Confirmar pagamento recebido
-         </button>`
-      : "";
-
-    return `
-      <div class="pag-card status-${st}" data-pag-id="${p.id}">
-        <div class="pag-icone">${icones[st] || "💳"}</div>
-        <div class="pag-info" style="flex:1">
-          <div class="pag-nome">${ag.nome || "—"}</div>
-          <div class="pag-detalhe">💅 ${ag.servico || "—"} &nbsp;|&nbsp; 📅 ${dataFmt} às ${ag.hora || "—"}</div>
-          <div class="pag-detalhe">📱 ${ag.telefone || "—"}${modoPag ? ` &nbsp;|&nbsp; 💳 ${modoPag}` : ""}</div>
-          <div class="pag-detalhe" style="margin-top:4px">
-            <span class="status-badge badge-${badgeMap[st] || "pendente"}">${labels[st] || st}</span>
-            &nbsp; Enviado: ${criadoEm}
-            ${pagoEm ? `&nbsp;|&nbsp; Confirmado: ${pagoEm}` : ""}
-          </div>
-          ${btnConfirmar}
-        </div>
-        <div class="pag-valor">
-          R$ ${Number(valor).toFixed(2)}
-          <span>${st === "pago" ? "recebido" : "esperado"}</span>
-        </div>
+    const { data, error } = await query;
+    if (error) {
+      lista.innerHTML = `<div class="empty-state" style="color:#7a0000">
+        ⚠️ Tabela de pagamentos não encontrada.<br>
+        <small>Execute o arquivo <strong>EXECUTAR_NO_SUPABASE.sql</strong> no Supabase SQL Editor.</small>
       </div>`;
-  }).join("");
+      return;
+    }
+
+    let ags = (data || []).filter(a => a.pix_valor || a.pagamento);
+    if (statusFiltro === "aguardando_confirmacao") ags = ags.filter(a => a.status === "aguardando_confirmacao");
+    else if (statusFiltro === "pago") ags = ags.filter(a => a.status === "confirmado");
+
+    const pagos_   = (data || []).filter(a => a.status === "confirmado" && a.pix_valor);
+    const aguard_  = (data || []).filter(a => a.status === "aguardando_confirmacao");
+    const recebido_= pagos_.reduce((s, a) => s + Number(a.pix_valor || 0), 0);
+    if (statsEl) statsEl.innerHTML = `
+      <div class="stat-box"><div class="num">${ags.length}</div><div class="leg">Total</div></div>
+      <div class="stat-box"><div class="num">${pagos_.length}</div><div class="leg">Confirmados ✅</div></div>
+      <div class="stat-box"><div class="num">${aguard_.length}</div><div class="leg">🔵 Aguard. confirm.</div></div>
+      <div class="stat-box"><div class="num" style="font-size:18px">R$ ${recebido_.toFixed(2)}</div><div class="leg">Recebido</div></div>
+      <div class="stat-box" style="grid-column:1/-1;background:rgba(240,192,96,.2)"><div class="num" style="font-size:13px;color:#7a5700">⚠️ Tabela pagamentos ausente</div><div class="leg">Execute EXECUTAR_NO_SUPABASE.sql para habilitar histórico completo</div></div>`;
+
+    if (!ags.length) {
+      lista.innerHTML = '<div class="empty-state">Nenhum pagamento encontrado.</div>';
+      return;
+    }
+
+    lista.innerHTML = ags.map(a => {
+      const st    = a.status === "confirmado" ? "pago" : a.status || "pendente";
+      const valor = a.pix_valor || 0;
+      const dataFmt = a.data ? a.data.split("-").reverse().join("/") : "—";
+      const modoPag = a.pagamento || "";
+      const icones = { pago:"✅", aguardando_confirmacao:"🔵", pendente:"⏳", cancelado:"❌" };
+      const labels  = { pago:"Pago ✅", aguardando_confirmacao:"Aguardando confirmação 🔵", pendente:"Pendente ⏳", cancelado:"Cancelado ❌" };
+      const btnConfirmar = (a.status === "aguardando_confirmacao")
+        ? `<button onclick="confirmarDB('${a.id}','${(a.nome||"").replace(/'/g,"\\'")}','${(a.servico||"").replace(/'/g,"\\'")}','${a.data||""}','${a.hora||""}','${a.telefone||""}')"
+             style="margin-top:8px;padding:8px 16px;background:#6ecb8b;color:white;border:none;border-radius:20px;font-size:12px;font-family:Poppins,sans-serif;cursor:pointer;font-weight:500">
+             ✅ Confirmar pagamento recebido
+           </button>` : "";
+      return `
+        <div class="pag-card status-${st}" data-pag-id="${a.id}">
+          <div class="pag-icone">${icones[st] || "💳"}</div>
+          <div class="pag-info" style="flex:1">
+            <div class="pag-nome">${a.nome || "—"}</div>
+            <div class="pag-detalhe">💅 ${a.servico || "—"} &nbsp;|&nbsp; 📅 ${dataFmt} às ${a.hora || "—"}</div>
+            <div class="pag-detalhe">📱 ${a.telefone || "—"}${modoPag ? ` &nbsp;|&nbsp; 💳 ${modoPag}` : ""}</div>
+            <div class="pag-detalhe" style="margin-top:4px">
+              <span class="status-badge badge-${st === "pago" ? "confirmado" : st}">${labels[st] || st}</span>
+            </div>
+            ${btnConfirmar}
+          </div>
+          <div class="pag-valor">
+            R$ ${Number(valor).toFixed(2)}
+            <span>${st === "pago" ? "recebido" : "esperado"}</span>
+          </div>
+        </div>`;
+    }).join("");
+  } catch(e) {
+    lista.innerHTML = `<div class="empty-state" style="color:#7a0000">Erro ao carregar pagamentos: ${e.message}</div>`;
+  }
+}
+
+// Monta HTML de um card de pagamento (quando tabela pagamentos existe)
+function _htmlCardPagamento(p, ag) {
+  const dataFmt  = ag.data ? ag.data.split("-").reverse().join("/") : "—";
+  const pagoEm   = p.pago_em   ? new Date(p.pago_em).toLocaleString("pt-BR")   : null;
+  const criadoEm = p.criado_em ? new Date(p.criado_em).toLocaleString("pt-BR") : "—";
+  const st       = p.status || "pendente";
+  const valor    = p.valor_recebido || p.valor || ag.pix_valor || 0;
+  const agId     = ag.id || p.agendamento_id;
+  const modoPag  = ag.pagamento || "";
+
+  const icones = { pago:"✅", aguardando_confirmacao:"🔵", pendente:"⏳", expirado:"⏰", cancelado:"❌" };
+  const labels  = { pago:"Pago ✅", aguardando_confirmacao:"Aguardando confirmação 🔵", pendente:"Pendente ⏳", expirado:"Expirado ⏰", cancelado:"Cancelado ❌" };
+  const badgeMap= { pago:"confirmado", aguardando_confirmacao:"aguardando_confirmacao", pendente:"pendente", expirado:"expirado", cancelado:"cancelado" };
+
+  // escapa aspas simples nos parâmetros para não quebrar o onclick
+  const nomeEsc    = (ag.nome    || "").replace(/'/g, "\\'");
+  const servicoEsc = (ag.servico || "").replace(/'/g, "\\'");
+
+  const btnConfirmar = (st === "aguardando_confirmacao" && agId)
+    ? `<button onclick="confirmarPagamentoDB('${p.id}','${agId}','${nomeEsc}','${servicoEsc}','${ag.data||""}','${ag.hora||""}','${ag.telefone||""}')"
+         style="margin-top:8px;padding:8px 16px;background:#6ecb8b;color:white;border:none;border-radius:20px;font-size:12px;font-family:Poppins,sans-serif;cursor:pointer;font-weight:500">
+         ✅ Confirmar pagamento recebido
+       </button>` : "";
+
+  return `
+    <div class="pag-card status-${st}" data-pag-id="${p.id}">
+      <div class="pag-icone">${icones[st] || "💳"}</div>
+      <div class="pag-info" style="flex:1">
+        <div class="pag-nome">${ag.nome || "—"}</div>
+        <div class="pag-detalhe">💅 ${ag.servico || "—"} &nbsp;|&nbsp; 📅 ${dataFmt} às ${ag.hora || "—"}</div>
+        <div class="pag-detalhe">📱 ${ag.telefone || "—"}${modoPag ? ` &nbsp;|&nbsp; 💳 ${modoPag}` : ""}</div>
+        <div class="pag-detalhe" style="margin-top:4px">
+          <span class="status-badge badge-${badgeMap[st] || "pendente"}">${labels[st] || st}</span>
+          &nbsp; Enviado: ${criadoEm}
+          ${pagoEm ? `&nbsp;|&nbsp; Confirmado: ${pagoEm}` : ""}
+        </div>
+        ${btnConfirmar}
+      </div>
+      <div class="pag-valor">
+        R$ ${Number(valor).toFixed(2)}
+        <span>${st === "pago" ? "recebido" : "esperado"}</span>
+      </div>
+    </div>`;
 }
 
 // Confirma o pagamento recebido — remove card com animação e abre WhatsApp
@@ -1317,7 +1394,7 @@ async function confirmarPagamentoDB(pagId, agId, nome, servico, data, hora, tel)
   const t = normalizarTel(tel);
   if (t) window.open(`https://wa.me/${t}?text=${encodeURIComponent(msg)}`, "_blank");
 
-  // Remove card de pagamento com animação
+  // Remove card de pagamento com animação imediatamente
   const pagCard = document.querySelector(`[data-pag-id="${pagId}"]`);
   if (pagCard) {
     pagCard.style.transition = "all 0.35s ease";
@@ -1334,17 +1411,28 @@ async function confirmarPagamentoDB(pagId, agId, nome, servico, data, hora, tel)
 
   toast("Pagamento confirmado e agendamento atualizado! ✅");
 
-  // Atualiza banco em segundo plano
-  await sb.from("pagamentos").update({
-    status: "pago",
-    pago_em: new Date().toISOString()
-  }).eq("id", pagId);
+  // Atualiza banco em segundo plano — tenta com pago_em, depois sem
+  try {
+    const { error } = await sb.from("pagamentos").update({
+      status: "pago",
+      pago_em: new Date().toISOString()
+    }).eq("id", pagId);
+
+    if (error) {
+      // se coluna pago_em não existe ainda, atualiza só o status
+      await sb.from("pagamentos").update({ status: "pago" }).eq("id", pagId);
+    }
+  } catch(e) {
+    // tabela pagamentos pode não existir — confirma pelo agendamento mesmo
+  }
 
   await dbAtualizarStatus(agId, "confirmado");
 
   // Atualiza as duas abas silenciosamente
-  renderAgendamentosDB();
-  renderPagamentos();
+  setTimeout(() => {
+    renderAgendamentosDB();
+    renderPagamentos();
+  }, 700);
 }
 
 // Carrega pagamentos quando muda para a aba (atualiza sempre que abre)
